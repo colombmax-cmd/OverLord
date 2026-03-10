@@ -138,6 +138,14 @@ recommendations
 
 The user remains the ultimate authority.
 
+4.8 Architectural Independence
+
+Overlord must integrate through PLOS contracts
+rather than bind to one memory implementation.
+
+Smo.OS is a primary target backend,
+but Overlord remains replaceable and standalone.
+
 
 --------------------------------------------------
 5. Memory Model Awareness
