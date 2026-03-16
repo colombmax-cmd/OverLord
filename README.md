@@ -61,3 +61,14 @@ See `doc/technical-scope.md` for the implementation boundary and MVP technical b
 
 Project documentation is organized under [`doc/`](./doc/README.md).
 
+Roadmap de delivery MVP Core: [`doc/mvp-core-roadmap.md`](./doc/mvp-core-roadmap.md).
+
+
+
+## Getting started (MVP scaffold)
+
+```bash
+npm install
+npm test
+npm run dev
+```
