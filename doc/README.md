@@ -6,3 +6,5 @@
 - [Intent Model](./intent-model.md)
 - [Intent Processing](./intent-processing.md)
 - [Technical Scope](./technical-scope.md)
+- [MVP Core Roadmap](./mvp-core-roadmap.md)
+- [Conformance Architecture](./conformance-architecture.md)

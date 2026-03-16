@@ -21,24 +21,34 @@ or keep Overlord and use another compatible PLOS implementation.
 
 User
 ↓
-PLOS-compatible memory layer (e.g. Smo.OS)
+Overlord (Cognitive Orchestrator)
 ↓
-Overlord Runtime
+Memory access request
+↓
+MAL in Smo.OS / PLOS backend (authoritative enforcement)
+↓
+Filtered memory view
+↓
+Cognitive Agent
+↓
+Workflow proposal
+↓
+Overlord validation
 ↓
 Execution Provider (Temporal or other)
 ↓
-Agents
-↓
-Tools / APIs
+Action Agents
 
 ## Responsibilities
 
 Overlord:
 - interprets user intent
-- enforces memory permissions
+- requests scoped memory access and validates policy intent
 - builds workflow plans
 - delegates execution
 - generates audit events
+
+Note: authoritative access enforcement remains in MAL (inside Smo.OS/PLOS), not in Overlord.
 
 ## Non-goals
 
@@ -61,3 +71,17 @@ See `doc/technical-scope.md` for the implementation boundary and MVP technical b
 
 Project documentation is organized under [`doc/`](./doc/README.md).
 
+MVP Core delivery roadmap: [`doc/mvp-core-roadmap.md`](./doc/mvp-core-roadmap.md).
+
+Conformance tests architecture: [`doc/conformance-architecture.md`](./doc/conformance-architecture.md).
+
+
+
+## Getting started (MVP scaffold)
+
+```bash
+npm install
+npm test
+npm run test:conformance
+npm run dev
+```

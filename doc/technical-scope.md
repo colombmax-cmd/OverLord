@@ -8,7 +8,7 @@ It complements the philosophy/positioning documents by translating principles in
 Overlord is a standalone service between:
 
 - **northbound**: user-facing intent entrypoints (API, CLI, or UI backend)
-- **southbound**: PLOS-compatible memory/capability backend (e.g. Smo.OS)
+- **southbound**: PLOS-compatible memory/capability backend with MAL enforcement (e.g. Smo.OS)
 - **execution side**: workflow execution provider (Temporal or equivalent)
 - **agent side**: cognitive and action agents
 
@@ -24,13 +24,16 @@ Responsibilities:
 - assign correlation identifiers
 - normalize intent into canonical internal format
 
-### 2.2 Policy & Capability Guard
+### 2.2 Policy & Capability Guard (Overlord-side)
 
 Responsibilities:
-- verify required capabilities before any memory access
-- enforce least privilege and expiration constraints
-- deny by default when capabilities are missing
-- emit audit events for authorization decisions
+- decide requested memory scope based on intent and policy
+- build memory access requests to the PLOS backend/MAL
+- validate that returned view is compatible with expected scope
+- emit audit events for access requests and denials
+
+Constraint:
+- final authorization enforcement is performed by MAL in the PLOS backend, not by Overlord
 
 ### 2.3 Planning Engine
 
@@ -103,14 +106,15 @@ Action agent input/output:
 
 1. Receive intent.
 2. Validate/normalize intent.
-3. Run initial capability pre-check.
-4. Invoke cognitive agent for plan proposal.
-5. Arbiter validates proposal and security constraints.
-6. Request clarification/scope extension if needed.
-7. Freeze approved plan.
-8. Submit plan via execution adapter.
-9. Track state and emit audit events.
-10. Return final outcome + traceable references.
+3. Build memory access request according to policy intent.
+4. Request filtered memory view from MAL/PLOS.
+5. Invoke cognitive agent for plan proposal.
+6. Arbiter validates proposal and security constraints.
+7. Request clarification/scope extension if needed.
+8. Freeze approved plan.
+9. Submit plan via execution adapter.
+10. Track state and emit audit events.
+11. Return final outcome + traceable references.
 
 ## 5) Data Model (MVP)
 
@@ -208,7 +212,7 @@ These tracks are not optional long-term; they are staged alongside Core dependin
 ## 9) Done Criteria for Technical Scope v1
 
 - Overlord can process one intent family end-to-end.
-- Capability checks are enforced before each protected operation.
+- MAL/PLOS enforces each protected memory access; Overlord only requests scoped access.
 - Workflow submission/monitoring works through adapter abstraction.
 - All major transitions produce auditable events.
 - Replacing either memory adapter or execution provider requires no core rewrite.

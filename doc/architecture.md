@@ -4,24 +4,36 @@ The ecosystem is intentionally split into replaceable layers.
 
 User
 ↓
-PLOS-compatible memory system (Smo.OS or equivalent)
+Overlord (Cognitive Orchestrator)
 ↓
-Cognitive Orchestrator (Overlord or another runtime)
+Memory access request
+↓
+MAL in Smo.OS / PLOS backend
+↓
+Filtered memory view
+↓
+Cognitive Agent
+↓
+Workflow proposal
+↓
+Overlord validation
 ↓
 Execution Engine (Temporal or other)
 ↓
-Agents
+Action Agents
 ↓
 External tools
 
 ## Separation contract
 
-### Memory Layer (PLOS)
+### Memory Layer (PLOS + MAL)
 
 Provides:
 - personal memory storage
 - identity and ownership
 - capability issuance and validation
+- authoritative memory access enforcement (MAL)
+- filtered memory views
 - audit/event persistence
 
 Does not provide:
@@ -33,19 +45,21 @@ Does not provide:
 
 Provides:
 - intent interpretation
-- policy enforcement
-- workflow planning
+- memory-access request planning (scope intent)
+- workflow planning and validation
 - agent coordination
 - delegation to execution providers
 
 Does not provide:
+- authoritative memory permission enforcement
 - durable workflow runtime internals
 - personal memory ownership/storage
 
 ## Interoperability principles
 
 - PLOS defines the contract boundary.
-- Overlord must target the contract, not a single vendor implementation.
+- MAL is a backend-side concern (inside Smo.OS/PLOS implementations).
+- Overlord targets contracts and receives filtered views; it does not own memory enforcement.
 - Smo.OS is a first-class target backend, but not a hard dependency.
 - Multiple orchestrators should be able to operate on compatible PLOS backends.
 
