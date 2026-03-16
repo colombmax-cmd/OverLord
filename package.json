@@ -5,7 +5,8 @@
   "description": "Overlord cognitive orchestration runtime (MVP scaffold)",
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "test:conformance": "node --test \"test/conformance/**/*.test.ts\"",
     "dev": "node src/index.ts"
   }
 }

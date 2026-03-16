@@ -30,6 +30,7 @@ export interface AuditEvent extends EntityMetadata {
   kind:
     | 'intent_received'
     | 'capability_check'
+    | 'capability_denied'
     | 'plan_generated'
     | 'workflow_submitted'
     | 'workflow_completed';

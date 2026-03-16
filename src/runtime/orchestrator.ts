@@ -1,10 +1,15 @@
 import type { PlosAdapter } from '../../adapters/plos/interface.ts';
 import type { ExecutionProvider } from '../adapters/execution/interface.ts';
+import { IntentGateway, type RawIntentInput } from '../intent/gateway.ts';
 import type { AuditEvent, IntentEnvelope, WorkflowPlan, WorkflowStep } from '../models/core.ts';
+import { PlosAccessDeniedError } from '../plos/errors.ts';
+import { DefaultPolicyCapabilityGuard, type PolicyCapabilityGuard } from '../policy/guard.ts';
 
 export interface OrchestratorDependencies {
   plos: PlosAdapter;
   executionProvider: ExecutionProvider;
+  intentGateway?: IntentGateway;
+  policyGuard?: PolicyCapabilityGuard;
 }
 
 export interface ProcessIntentResult {
@@ -15,28 +20,43 @@ export interface ProcessIntentResult {
 
 export class OverlordOrchestrator {
   private readonly deps: OrchestratorDependencies;
+  private readonly intentGateway: IntentGateway;
+  private readonly policyGuard: PolicyCapabilityGuard;
 
   constructor(deps: OrchestratorDependencies) {
     this.deps = deps;
+    this.intentGateway = deps.intentGateway ?? new IntentGateway();
+    this.policyGuard = deps.policyGuard ?? new DefaultPolicyCapabilityGuard();
+  }
+
+  async processRawIntent(rawIntent: RawIntentInput): Promise<ProcessIntentResult> {
+    const intent = this.intentGateway.normalize(rawIntent);
+    return this.processIntent(intent);
   }
 
   async processIntent(intent: IntentEnvelope): Promise<ProcessIntentResult> {
     await this.emitAudit(intent, 'intent_received', { intentType: intent.intentType });
 
-    const capabilityDecision = await this.deps.plos.checkCapability({
-      actorId: intent.actorId,
-      capability: 'workflow:submit',
-      resource: intent.intentType,
-    });
+    const memoryAccess = this.policyGuard.planMemoryAccess(intent);
 
-    await this.emitAudit(intent, 'capability_check', {
-      capability: 'workflow:submit',
-      allowed: capabilityDecision.allowed,
-      reason: capabilityDecision.reason,
-    });
+    try {
+      const memoryView = await this.deps.plos.readEvents(memoryAccess.query, memoryAccess.capability);
+      await this.emitAudit(intent, 'capability_check', {
+        capability: memoryAccess.capability,
+        allowed: true,
+        reason: 'enforced by MAL/PLOS',
+        returnedEvents: memoryView.length,
+      });
+    } catch (error) {
+      if (error instanceof PlosAccessDeniedError) {
+        await this.emitAudit(intent, 'capability_denied', {
+          capability: error.capability,
+          allowed: false,
+          reason: error.reason,
+        });
+      }
 
-    if (!capabilityDecision.allowed) {
-      throw new Error(`intent rejected: ${capabilityDecision.reason}`);
+      throw error;
     }
 
     const plan = this.buildPlan(intent);
