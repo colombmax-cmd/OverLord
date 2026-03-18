@@ -8,5 +8,8 @@
     "test": "node --test \"test/**/*.test.ts\"",
     "test:conformance": "node --test \"test/conformance/**/*.test.ts\"",
     "dev": "node src/index.ts"
+  },
+  "dependencies": {
+    "smo-os": "git+https://github.com/colombmax-cmd/Smo.OS.git"
   }
 }

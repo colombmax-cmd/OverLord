@@ -1,8 +1,15 @@
 import { SmoosAdapter } from '../adapters/plos/smoos_adapter.ts';
+import { createSmoosDependencyAdapter } from '../adapters/plos/smoos_dependency_adapter.ts';
 import { InMemoryExecutionProvider } from './adapters/execution/in-memory-provider.ts';
 import { OverlordOrchestrator } from './runtime/orchestrator.ts';
 
-const plos = new SmoosAdapter();
+const plos = process.env.OVERLORD_USE_LOCAL_SMOOS === '1'
+  ? new SmoosAdapter()
+  : await createSmoosDependencyAdapter({
+      moduleName: process.env.SMOOS_PACKAGE,
+      exportName: process.env.SMOOS_EXPORT_NAME,
+    });
+
 const executionProvider = new InMemoryExecutionProvider();
 const orchestrator = new OverlordOrchestrator({ plos, executionProvider });
 
