@@ -1,9 +1,11 @@
 import type { EventQuery } from '../../adapters/plos/interface.ts';
 import type { IntentEnvelope } from '../models/core.ts';
+import type { PlosMemoryViewRequest } from '../ports/plos.ts';
 
 export interface MemoryAccessRequest {
   capability: string;
   query: EventQuery;
+  memoryViewRequest: PlosMemoryViewRequest;
 }
 
 export interface PolicyCapabilityGuard {
@@ -17,11 +19,21 @@ export interface PolicyCapabilityGuard {
  */
 export class DefaultPolicyCapabilityGuard implements PolicyCapabilityGuard {
   planMemoryAccess(intent: IntentEnvelope): MemoryAccessRequest {
+    const scope = `intent:${intent.actorId}`;
+
     return {
       capability: 'intent:read',
       query: {
-        stream: `intent:${intent.actorId}`,
+        stream: scope,
         limit: 50,
+      },
+      memoryViewRequest: {
+        userId: intent.actorId,
+        agentId: 'overlord-runtime',
+        sessionId: intent.correlationId,
+        capability: 'intent:read',
+        scope: [scope],
+        reason: `Process intent ${intent.intentType}`,
       },
     };
   }

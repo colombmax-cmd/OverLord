@@ -1,17 +1,31 @@
 const adapter = {
-  async checkCapability() {
-    return { allowed: true, reason: 'ok' };
+  async evaluateCapability() {
+    return { allowed: true, reason: 'ok', capabilityInstanceId: null };
   },
-  async readEvents() {
-    return [];
+  async getAuthorizedMemoryView(request: { scope: string[] }) {
+    return {
+      request,
+      decision: 'allow' as const,
+      effectiveScopes: request.scope,
+      deniedScopes: [],
+      context: {},
+      timestampMs: Date.now(),
+    };
   },
-  async writeEvent() {
+  async getStructureView(request: { scope?: string[] }) {
+    return {
+      request,
+      scopes: (request.scope ?? []).map((scope) => ({ scope })),
+      timestampMs: Date.now(),
+    };
+  },
+  async appendEvent() {
     return { ok: true as const };
   },
-  async publishProjection() {
-    return { projectionRef: 'projection:1' };
+  async readAllEvents() {
+    return [];
   },
-  async emitAudit() {
+  async appendAuditRecord() {
     return { ok: true as const };
   },
 };

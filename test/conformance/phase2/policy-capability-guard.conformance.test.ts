@@ -5,23 +5,23 @@ import { PlosAccessDeniedError } from '../../../src/plos/errors.ts';
 import { buildConformanceHarness, validRawIntent } from '../shared/fixtures.ts';
 
 test('phase2/policy-guard: allows protected execution path when required capability exists', async () => {
-  const { orchestrator, plos } = buildConformanceHarness({
+  const { orchestrator, platform } = buildConformanceHarness({
     adapter: { grantedCapabilities: ['intent:read', 'audit:write'] },
   });
 
   const result = await orchestrator.processRawIntent(validRawIntent());
   assert.equal(result.workflowState, 'completed');
 
-  const capabilityAudits = plos
+  const capabilityAudits = platform
     .getAuditTrail()
-    .filter((audit) => audit.kind === 'capability_check' || audit.kind === 'capability_denied');
+    .filter((audit) => audit.eventType === 'overlord.capability_check' || audit.eventType === 'overlord.capability_denied');
 
   assert.ok(capabilityAudits.length >= 1);
-  assert.equal(capabilityAudits.some((audit) => audit.kind === 'capability_denied'), false);
+  assert.equal(capabilityAudits.some((audit) => audit.eventType === 'overlord.capability_denied'), false);
 });
 
 test('phase2/policy-guard: denies by default when capability is missing and emits denial audit', async () => {
-  const { orchestrator, plos } = buildConformanceHarness({
+  const { orchestrator, platform } = buildConformanceHarness({
     adapter: { grantedCapabilities: ['audit:write'] },
   });
 
@@ -34,8 +34,8 @@ test('phase2/policy-guard: denies by default when capability is missing and emit
     },
   );
 
-  const denialAudit = plos.getAuditTrail().find((audit) => audit.kind === 'capability_denied');
+  const denialAudit = platform.getAuditTrail().find((audit) => audit.eventType === 'overlord.capability_denied');
   assert.ok(denialAudit);
-  assert.equal(denialAudit?.details.allowed, false);
-  assert.equal(denialAudit?.details.capability, 'intent:read');
+  assert.equal(denialAudit?.details?.allowed, false);
+  assert.equal(denialAudit?.details?.capability, 'intent:read');
 });

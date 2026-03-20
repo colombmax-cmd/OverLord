@@ -5,10 +5,10 @@ import { SmoosAdapter } from '../adapters/plos/smoos_adapter.ts';
 import { InMemoryExecutionProvider } from '../src/adapters/execution/in-memory-provider.ts';
 import { OverlordOrchestrator } from '../src/runtime/orchestrator.ts';
 
-test('processIntent builds and submits a workflow plan', async () => {
-  const plos = new SmoosAdapter();
+test('processIntent builds and submits a workflow plan with route-aware cognition metadata', async () => {
+  const platform = new SmoosAdapter();
   const executionProvider = new InMemoryExecutionProvider();
-  const orchestrator = new OverlordOrchestrator({ plos, executionProvider });
+  const orchestrator = new OverlordOrchestrator({ platform, executionProvider });
 
   const intent = {
     id: 'intent-test-ts-1',
@@ -22,4 +22,8 @@ test('processIntent builds and submits a workflow plan', async () => {
 
   const result = await orchestrator.processIntent(intent);
   assert.equal(result.workflowState, 'completed');
+  assert.equal(result.cognition?.modelId, 'Qwen/Qwen2.5-1.5B-Instruct');
+  assert.equal(result.cognition?.proposalType, 'proposal');
+  assert.equal(result.cognition?.requestedPreference, 'auto');
+  assert.equal(result.cognition?.fallbackApplied, false);
 });

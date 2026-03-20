@@ -44,9 +44,10 @@ Action Agents
 Overlord:
 - interprets user intent
 - requests scoped memory access and validates policy intent
+- runs an offline-first local cognitive backend with a supported model registry
 - builds workflow plans
 - delegates execution
-- generates audit events
+- generates audit events, including cognitive decisions and significant exchanges
 
 Note: authoritative access enforcement remains in MAL (inside Smo.OS/PLOS), not in Overlord.
 
@@ -82,6 +83,18 @@ Default runtime behavior:
 - if needed, `SMOOS_PACKAGE` can point to another compatible package or subpath.
 - if needed, `SMOOS_EXPORT_NAME` can force a specific export.
 - `OVERLORD_USE_LOCAL_SMOOS=1` switches back to the in-repo `SmoosAdapter` stub for offline development.
+
+
+## Offline cognition phase A
+
+Overlord now includes an offline-first cognitive backend path for local planning:
+- supported local models are declared in a registry (`src/cognition/model-registry.ts`)
+- the default supported model is `Qwen/Qwen2.5-1.5B-Instruct`
+- connectivity is tracked separately from cognition so future online routing can be added without changing the orchestrator contract
+- PLOS events and audits now capture cognitive decisions plus significant exchange summaries
+- Phase B adds hybrid routing so Overlord can prefer a remote cognition backend when online, while preserving local-first fallback and explicit no-action when remote cognition is mandatory but unavailable
+- Phase Online-Prep adds an env-configured remote-LLM backend with a multi-provider catalogue (`xai`, `openai`), product-style secret refs by default (`product:xai_api_key`, `product:openai_api_key`) with env/file fallback support, and opt-in live smoke tests guarded by `RUN_LIVE_LLM_TESTS=1`
+- user intent can now override the remote-LLM provider/model selection through `payload.remoteLlm` (or `remoteLlmProvider` / `remoteLlmModel`) while still falling back to the selected provider defaults
 
 Expected dependency contract:
 - for `smo-os`, Overlord can bridge to the installed git dependency even though the package does not expose a JS entrypoint, or

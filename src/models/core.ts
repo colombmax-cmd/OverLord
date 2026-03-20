@@ -24,6 +24,9 @@ export interface WorkflowStep {
 export interface WorkflowPlan extends EntityMetadata {
   intentId: string;
   steps: WorkflowStep[];
+  planVersion: number;
+  frozenAt: string;
+  planHash: string;
 }
 
 export interface AuditEvent extends EntityMetadata {
@@ -31,7 +34,12 @@ export interface AuditEvent extends EntityMetadata {
     | 'intent_received'
     | 'capability_check'
     | 'capability_denied'
+    | 'cognition_invoked'
+    | 'cognition_decided'
     | 'plan_generated'
+    | 'clarification_requested'
+    | 'scope_requested'
+    | 'no_action'
     | 'workflow_submitted'
     | 'workflow_completed';
   details: Record<string, unknown>;

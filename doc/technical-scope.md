@@ -39,6 +39,7 @@ Constraint:
 
 Responsibilities:
 - map intent → candidate workflow plan
+- run through an offline-first cognitive layer with a supported-model registry and routeable local/remote backends
 - request clarification when intent is under-specified
 - request additional scope if minimally required
 - produce structured plan output consumable by execution provider
@@ -96,7 +97,8 @@ Constraint:
 
 Cognitive agent input/output:
 - input: intent context + authorized memory window
-- output: `{proposal | clarification | scope_request | no_action}`
+- output: `{proposal | clarification | scope_request | no_action}` plus model-selection, route-selection, and transcript metadata for auditability
+- online-capable backends must obtain secrets through a separate provider/secret layer rather than embedding credentials inside intent payloads
 
 Action agent input/output:
 - input: validated executable step + scoped capability
