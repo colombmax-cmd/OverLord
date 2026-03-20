@@ -4,7 +4,7 @@ set -euo pipefail
 OVERLORD_DIR="/workspaces/OverLord"
 SMOOS_DIR="/workspaces/Smo.OS"
 
-# Ajuste ces commandes selon les scripts réels
+# Adjust these commands according to the real scripts
 SMOOS_CMD="${SMOOS_CMD:-npm run core}"
 OVERLORD_CMD="${OVERLORD_CMD:-echo 'OverLord runtime not implemented yet; docs-only repo'}"
 

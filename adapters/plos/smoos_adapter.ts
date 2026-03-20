@@ -1,53 +1,126 @@
-import type { AuditEvent, CapabilityDecision } from '../../src/models/core.ts';
-import type { CapabilityCheckRequest, EventQuery, PlosAdapter } from './interface.ts';
+import type {
+  PlosAccessGrant,
+  PlosAdapter,
+  PlosCapabilityProbeDecision,
+  PlosCapabilityProbeRequest,
+  PlosEvent,
+  PlosMemoryView,
+  PlosMemoryViewRequest,
+  PlosStructureView,
+  PlosStructureViewRequest,
+  RuntimeAuditRecord,
+} from './interface.ts';
+import { createAuditLogEvent } from '../../src/runtime/plos-events.ts';
+
+export interface SmoosAdapterOptions {
+  grantedCapabilities?: string[];
+}
 
 export class SmoosAdapter implements PlosAdapter {
-  private readonly grantedCapabilities = new Set<string>(['intent:read', 'workflow:submit', 'audit:write']);
-  private readonly events: Record<string, unknown>[] = [];
-  private readonly audits: AuditEvent[] = [];
+  private readonly grantedCapabilities: Set<string>;
+  private readonly events: PlosEvent[] = [];
+  private readonly audits: RuntimeAuditRecord[] = [];
 
-  async checkCapability(request: CapabilityCheckRequest): Promise<CapabilityDecision> {
+  constructor(options: SmoosAdapterOptions = {}) {
+    this.grantedCapabilities = new Set(options.grantedCapabilities ?? ['intent:read', 'workflow:submit', 'audit:write']);
+  }
+
+  async evaluateCapability(request: PlosCapabilityProbeRequest): Promise<PlosCapabilityProbeDecision> {
     const allowed = this.grantedCapabilities.has(request.capability);
     return {
       allowed,
       reason: allowed ? 'capability granted by adapter policy' : 'capability missing',
+      capabilityInstanceId: null,
     };
   }
 
-  async readEvents(query: EventQuery, _capability: string): Promise<Record<string, unknown>[]> {
-    return this.events.slice(0, query.limit ?? this.events.length);
-  }
+  async getAuthorizedMemoryView(request: PlosMemoryViewRequest, grant = this.createGrant(request)): Promise<PlosMemoryView> {
+    const capability = await this.evaluateCapability({
+      actorId: request.agentId,
+      capability: request.capability,
+    });
 
-  async writeEvent(event: Record<string, unknown>, capability: string): Promise<{ ok: true }> {
-    const decision = await this.checkCapability({ actorId: 'overlord-runtime', capability });
-    if (!decision.allowed) {
-      throw new Error(`writeEvent denied: ${decision.reason}`);
+    if (!capability.allowed || !grant.capabilities.includes(request.capability)) {
+      return {
+        request,
+        decision: 'deny',
+        deniedReason: capability.reason,
+        grantId: grant.grantId,
+        effectiveScopes: [],
+        deniedScopes: [...request.scope],
+        context: {},
+        timestampMs: Date.now(),
+      };
     }
 
+    const effectiveScopes = request.scope.filter((scope) => grant.allowedScopes.includes(scope));
+    if (effectiveScopes.length === 0) {
+      return {
+        request,
+        decision: 'deny',
+        deniedReason: 'no_scope_authorized',
+        grantId: grant.grantId,
+        effectiveScopes: [],
+        deniedScopes: [...request.scope],
+        context: {},
+        timestampMs: Date.now(),
+      };
+    }
+
+    const context = Object.fromEntries(
+      effectiveScopes.map((scope) => [scope, { events: [...this.events] }]),
+    );
+
+    return {
+      request,
+      decision: 'allow',
+      grantId: grant.grantId,
+      effectiveScopes,
+      deniedScopes: request.scope.filter((scope) => !effectiveScopes.includes(scope)),
+      context,
+      timestampMs: Date.now(),
+    };
+  }
+
+  async getStructureView(request: PlosStructureViewRequest): Promise<PlosStructureView> {
+    const scopes = (request.scope ?? []).map((scope) => ({ scope }));
+    return {
+      request,
+      scopes,
+      timestampMs: Date.now(),
+    };
+  }
+
+  async appendEvent(event: PlosEvent): Promise<{ ok: true }> {
     this.events.push(event);
     return { ok: true };
   }
 
-  async publishProjection(
-    payload: Record<string, unknown>,
-    policy: string,
-    capability: string,
-  ): Promise<{ projectionRef: string }> {
-    const decision = await this.checkCapability({ actorId: 'overlord-runtime', capability });
-    if (!decision.allowed) {
-      throw new Error(`publishProjection denied: ${decision.reason}`);
-    }
-
-    this.events.push({ type: 'projection', policy, payload });
-    return { projectionRef: `projection:${this.events.length}` };
+  async readAllEvents(): Promise<PlosEvent[]> {
+    return [...this.events];
   }
 
-  async emitAudit(auditEvent: AuditEvent): Promise<{ ok: true }> {
-    this.audits.push(auditEvent);
+  async appendAuditRecord(record: RuntimeAuditRecord): Promise<{ ok: true }> {
+    this.audits.push(record);
+    this.events.push(createAuditLogEvent(record));
     return { ok: true };
   }
 
-  getAuditTrail(): AuditEvent[] {
+  getAuditTrail(): RuntimeAuditRecord[] {
     return [...this.audits];
+  }
+
+  private createGrant(request: PlosMemoryViewRequest): PlosAccessGrant {
+    const now = Date.now();
+    return {
+      grantId: `grant:${request.agentId}:${request.capability}`,
+      agentId: request.agentId,
+      sessionId: request.sessionId,
+      capabilities: this.grantedCapabilities.has(request.capability) ? [request.capability] : [],
+      allowedScopes: this.grantedCapabilities.has(request.capability) ? [...request.scope] : [],
+      issuedAtMs: now - 1000,
+      expiresAtMs: now + 60_000,
+      userConsentRef: 'overlord-local-smoos-adapter',
+    };
   }
 }

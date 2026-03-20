@@ -1,129 +1,135 @@
-# Overlord MVP Core Roadmap (référence)
+# Overlord MVP Core Roadmap (Reference)
 
-Ce document sert de référence pour piloter la construction du MVP Core d'Overlord.
+This document is the delivery reference for building the Overlord MVP Core.
 
-## Vision MVP
+## MVP Vision
 
-Livrer un runtime capable de traiter **une famille d'intents** de bout en bout, avec:
-- contrôles de capabilities avant opérations protégées,
-- soumission/monitoring via adapter d'exécution,
-- audit traçable des transitions majeures,
-- architecture portable (backend mémoire / provider interchangeables).
+Deliver a runtime able to process **one intent family** end-to-end, with:
+- capability checks before protected operations,
+- submission/monitoring through an execution adapter,
+- traceable audit events for major transitions,
+- portable architecture (interchangeable memory backend/provider).
 
-> Aligné avec `doc/technical-scope.md` sections 4, 8 et 9.
+> Aligned with `doc/technical-scope.md` sections 4, 8, and 9.
 
 ---
 
-## Phase 0 — Stabilisation de la base (TypeScript)
+## Phase 0 — Baseline Stabilization (TypeScript)
 
-### Objectif
-Avoir une base de dev cohérente, avec TypeScript comme source de vérité.
+### Objective
+Establish a consistent developer baseline with TypeScript as the source of truth.
 
 ### Scope
-- Unifier les scripts de dev/test sur les fichiers `.ts`.
-- Éviter les doublons divergents JS/TS au niveau logique métier.
-- Vérifier que le flux local fonctionne (`npm test`, `npm run dev`).
+- Unify dev/test scripts on `.ts` files.
+- Prevent JS/TS logic drift.
+- Verify local flow works (`npm test`, `npm run dev`).
 
 ### Done criteria
-- Tous les imports runtime pointent sur les modules TypeScript.
-- Les tests exécutés par défaut ciblent le chemin TS.
-- Le parcours intent -> plan -> execution -> audit reste vert.
+- Runtime imports target TypeScript modules.
+- Default test execution targets TS paths.
+- Intent -> plan -> execution -> audit flow remains green.
 
 ---
 
 ## Phase 1 — Intent Gateway
 
-### Objectif
-Implémenter l'entrée d'intent robuste (validation + normalisation).
+### Objective
+Implement robust intent intake (validation + normalization).
 
-### Livrables
-- Validation stricte du `IntentEnvelope`.
-- Gestion version de schéma.
-- Attribution/propagation correlation id.
-- Réponses d'erreurs structurées.
+### Deliverables
+- Strict `IntentEnvelope` validation.
+- Schema version management.
+- Correlation ID assignment/propagation.
+- Structured error responses.
 
 ### Done criteria
-- Tests: payload invalide, version invalide, intent valide.
+- Tests: invalid payload, invalid version, valid intent.
 
 ---
 
-## Phase 2 — Policy & Capability Guard
+## Phase 2 — Policy Requesting + MAL Enforcement Alignment
 
-### Objectif
-Garantir le modèle closed-by-default.
+### Objective
+Guarantee closed-by-default access while keeping enforcement in MAL/PLOS.
 
-### Livrables
-- Composant dédié de policy/capability guard.
-- Vérifications avant chaque opération protégée.
-- Audit des autorisations (allow/deny).
+### Deliverables
+- Overlord-side component that plans memory access requests from intent.
+- MAL/PLOS-side enforcement for protected memory operations.
+- Authorization audits for allow/deny outcomes returned by MAL.
 
 ### Done criteria
-- Aucun accès protégé sans check explicite.
-- Tests de refus et d'audit de refus.
+- Overlord never acts as final memory authorization authority.
+- Denial-path and denial-audit tests validate MAL-enforced failures.
 
 ---
 
 ## Phase 3 — Planning Engine + Clarification Loop
 
-### Objectif
-Passer d'un plan statique à un moteur de planification MVP.
+### Objective
+Move from static planning to an MVP planning engine.
 
-### Livrables
-- Production d'une proposition de plan structurée.
+### Deliverables
+- Structured plan proposal generation.
 - Branches: `proposal`, `clarification`, `scope_request`, `no_action`.
-- Règles déterministes de planification.
+- Deterministic planning rules.
 
 ### Done criteria
-- Tests de déterminisme et de branches de sortie.
+- Determinism and output-branch tests.
 
 ---
 
 ## Phase 4 — Arbiter + Freeze + Execution Adapter
 
-### Objectif
-Valider et figer le plan avant soumission exécution.
+### Objective
+Validate and freeze plans before execution submission.
 
-### Livrables
-- Arbiter de validation sécurité/structure.
-- Plan "freeze" (version/hash).
-- Suivi d'état via provider (`submit/get/subscribe/cancel`).
+### Deliverables
+- Security/structure arbiter.
+- Plan freeze (version/hash).
+- State tracking through provider (`submit/get/subscribe/cancel`).
 
 ### Done criteria
-- Tests de transitions d'état et de rollback/annulation.
+- State transition and rollback/cancel tests.
 
 ---
 
 ## Phase 5 — Audit E2E & Traceability
 
-### Objectif
-Rendre chaque décision/relation observable et retraçable.
+### Objective
+Make each decision and relation observable and traceable.
 
-### Livrables
-- Taxonomie d'événements d'audit MVP.
-- Propagation correlation id sur toute la chaîne.
-- Vérification d'intégrité minimale des audits.
+### Deliverables
+- MVP audit-event taxonomy.
+- Correlation ID propagation across the full path.
+- Baseline audit-integrity verification.
 
 ### Done criteria
-- Reconstitution d'une timeline complète pour un intent.
+- Full timeline reconstruction for one intent.
 
 ---
 
-## Phase 6 — Portabilité & Contract Tests
+## Phase 6 — Portability & Contract Tests
 
-### Objectif
-Prouver l'indépendance du core runtime.
+### Objective
+Prove core runtime independence.
 
-### Livrables
-- Contract tests pour PLOS adapter.
-- Contract tests pour Execution provider.
-- Second adapter/provider de validation (mock/stub).
+### Deliverables
+- Contract tests for PLOS adapters.
+- Contract tests for execution providers.
+- Second adapter/provider implementation (mock/stub).
 
 ### Done criteria
-- Changement d'adapter/provider sans réécriture du core.
+- Adapter/provider swap without core rewrite.
 
 ---
 
-## Cadence recommandée
+## Conformance Governance
+
+Each phase must ship conformance tests in `test/conformance/phaseN` before the phase is considered complete.
+
+---
+
+## Recommended Cadence
 - Sprint A: Phases 0-1
 - Sprint B: Phases 2-3
 - Sprint C: Phases 4-5
