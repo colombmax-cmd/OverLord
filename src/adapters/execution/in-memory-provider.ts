@@ -1,10 +1,16 @@
 import type { WorkflowPlan } from '../../models/core.ts';
 import type { ExecutionProvider, WorkflowState } from './interface.ts';
 
+interface WorkflowEvent {
+  state: WorkflowState;
+  at: string;
+}
+
 interface WorkflowRecord {
   id: string;
   state: WorkflowState;
   plan: WorkflowPlan;
+  events: WorkflowEvent[];
 }
 
 export class InMemoryExecutionProvider implements ExecutionProvider {
@@ -12,7 +18,12 @@ export class InMemoryExecutionProvider implements ExecutionProvider {
 
   async submitWorkflow(plan: WorkflowPlan): Promise<{ workflowId: string }> {
     const workflowId = `wf-${this.workflows.size + 1}`;
-    this.workflows.set(workflowId, { id: workflowId, state: 'completed', plan });
+    const events: WorkflowEvent[] = [
+      { state: 'submitted', at: new Date().toISOString() },
+      { state: 'completed', at: new Date().toISOString() },
+    ];
+
+    this.workflows.set(workflowId, { id: workflowId, state: 'completed', plan, events });
     return { workflowId };
   }
 
@@ -32,11 +43,18 @@ export class InMemoryExecutionProvider implements ExecutionProvider {
     }
 
     record.state = 'cancelled';
+    record.events.push({ state: 'cancelled', at: new Date().toISOString() });
     return { ok: true };
   }
 
   async *subscribeEvents(workflowId: string): AsyncIterable<{ state: WorkflowState; at: string }> {
-    const state = await this.getWorkflowState(workflowId);
-    yield { state: state.state, at: new Date().toISOString() };
+    const record = this.workflows.get(workflowId);
+    if (!record) {
+      throw new Error(`workflow not found: ${workflowId}`);
+    }
+
+    for (const event of record.events) {
+      yield event;
+    }
   }
 }

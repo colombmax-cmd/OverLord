@@ -8,12 +8,12 @@ export interface ConformanceHarnessOptions {
 }
 
 export function buildConformanceHarness(options: ConformanceHarnessOptions = {}) {
-  const plos = new SmoosAdapter(options.adapter);
+  const platform = new SmoosAdapter(options.adapter);
   const executionProvider = new InMemoryExecutionProvider();
   const intentGateway = new IntentGateway();
-  const orchestrator = new OverlordOrchestrator({ plos, executionProvider, intentGateway });
+  const orchestrator = new OverlordOrchestrator({ platform, executionProvider, intentGateway });
 
-  return { plos, executionProvider, intentGateway, orchestrator };
+  return { platform, executionProvider, intentGateway, orchestrator };
 }
 
 export function validRawIntent(overrides: Partial<RawIntentInput> = {}): RawIntentInput {

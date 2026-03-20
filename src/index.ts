@@ -3,7 +3,7 @@ import { createSmoosDependencyAdapter } from '../adapters/plos/smoos_dependency_
 import { InMemoryExecutionProvider } from './adapters/execution/in-memory-provider.ts';
 import { OverlordOrchestrator } from './runtime/orchestrator.ts';
 
-const plos = process.env.OVERLORD_USE_LOCAL_SMOOS === '1'
+const platform = process.env.OVERLORD_USE_LOCAL_SMOOS === '1'
   ? new SmoosAdapter()
   : await createSmoosDependencyAdapter({
       moduleName: process.env.SMOOS_PACKAGE,
@@ -11,7 +11,7 @@ const plos = process.env.OVERLORD_USE_LOCAL_SMOOS === '1'
     });
 
 const executionProvider = new InMemoryExecutionProvider();
-const orchestrator = new OverlordOrchestrator({ plos, executionProvider });
+const orchestrator = new OverlordOrchestrator({ platform, executionProvider });
 
 const result = await orchestrator.processRawIntent({
   actorId: 'user-1',
