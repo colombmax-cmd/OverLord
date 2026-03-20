@@ -1,4 +1,5 @@
 import type { SupportedModelProfile } from './interface.ts';
+import type { OverlordUserConfig } from '../config/user-config.ts';
 import {
   getDefaultRemoteLlmProvider,
   getDefaultRemoteModel,
@@ -40,6 +41,23 @@ export function readRemoteLlmProviderProfileFromEnv(env: NodeJS.ProcessEnv = pro
       || env[`${provider.envPrefix}_API_KEY_REF`]?.trim()
       || `product:${provider.defaultApiKeySecretName}`,
     store: readProviderStoreFromEnv(provider, env),
+  };
+}
+
+export function readRemoteLlmProviderProfileFromConfig(config: OverlordUserConfig | null): RemoteLlmProviderProfile | null {
+  const configured = config?.remoteLlm;
+  if (!configured) {
+    return null;
+  }
+
+  const provider = getRequiredRemoteLlmProvider(configured.providerId);
+
+  return {
+    providerId: provider.providerId,
+    modelId: configured.modelId.trim() || getDefaultRemoteModel(provider.providerId).modelId,
+    baseUrl: (configured.baseUrl?.trim() || provider.baseUrl).replace(/\/$/, ''),
+    apiKeySecretRef: configured.apiKeySecretRef.trim(),
+    store: configured.store,
   };
 }
 

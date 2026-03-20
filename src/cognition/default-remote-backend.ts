@@ -1,15 +1,17 @@
-import { EnvironmentSecretResolver } from '../secrets/env-resolver.ts';
+import { readOverlordUserConfig } from '../config/user-config.ts';
+import { DefaultSecretResolver } from '../secrets/default-resolver.ts';
 import type { CognitionBackend } from './interface.ts';
-import { readRemoteLlmProviderProfileFromEnv } from './provider-config.ts';
+import { readRemoteLlmProviderProfileFromConfig, readRemoteLlmProviderProfileFromEnv } from './provider-config.ts';
 import { DeterministicRemoteCognitionBackend } from './remote-backend.ts';
 import { RemoteLlmCognitionBackend } from './remote-llm-backend.ts';
 
 export function createDefaultRemoteCognitionBackend(env: NodeJS.ProcessEnv = process.env): CognitionBackend {
-  const remoteLlmProfile = readRemoteLlmProviderProfileFromEnv(env);
+  const remoteLlmProfile = readRemoteLlmProviderProfileFromConfig(readOverlordUserConfig(env))
+    ?? readRemoteLlmProviderProfileFromEnv(env);
   if (remoteLlmProfile) {
     return new RemoteLlmCognitionBackend({
       profile: remoteLlmProfile,
-      secretResolver: new EnvironmentSecretResolver(env),
+      secretResolver: new DefaultSecretResolver(env),
     });
   }
 

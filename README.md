@@ -95,6 +95,7 @@ Overlord now includes an offline-first cognitive backend path for local planning
 - Phase B adds hybrid routing so Overlord can prefer a remote cognition backend when online, while preserving local-first fallback and explicit no-action when remote cognition is mandatory but unavailable
 - Phase Online-Prep adds an env-configured remote-LLM backend with a multi-provider catalogue (`xai`, `openai`), product-style secret refs by default (`product:xai_api_key`, `product:openai_api_key`) with env/file fallback support, and opt-in live smoke tests guarded by `RUN_LIVE_LLM_TESTS=1`
 - user intent can now override the remote-LLM provider/model selection through `payload.remoteLlm` (or `remoteLlmProvider` / `remoteLlmModel`) while still falling back to the selected provider defaults
+- remote-LLM can also be configured through the product CLI and persisted in `~/.config/overlord/{config,secrets}.json` (or `OVERLORD_CONFIG_DIR`) without requiring provider/model/secret env vars at runtime
 
 Expected dependency contract:
 - for `smo-os`, Overlord can bridge to the installed git dependency even though the package does not expose a JS entrypoint, or
@@ -115,4 +116,21 @@ npm install
 npm test
 npm run test:conformance
 npm run dev
+```
+
+## Remote-LLM configuration CLI
+
+Persist a remote provider/model/secret locally:
+
+```bash
+node src/index.ts config remote-llm set \
+  --provider xai \
+  --model grok-4.20-beta-latest-non-reasoning \
+  --api-key "$XAI_API_KEY"
+```
+
+Inspect the persisted non-secret profile:
+
+```bash
+node src/index.ts config remote-llm show
 ```
