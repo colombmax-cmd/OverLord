@@ -13,9 +13,33 @@ const profile = readRemoteLlmProviderProfileFromEnv({
 });
 const secretResolver = new EnvironmentSecretResolver(process.env);
 
+
+function hasProxyEnv(env: NodeJS.ProcessEnv): boolean {
+  return Boolean(
+    env.HTTPS_PROXY?.trim()
+      || env.https_proxy?.trim()
+      || env.HTTP_PROXY?.trim()
+      || env.http_proxy?.trim(),
+  );
+}
+
+async function canLoadUndici(): Promise<boolean> {
+  try {
+    await import('undici');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 test('remote-llm/live: backend can reach the configured remote-LLM with env configuration', async (t) => {
   if (process.env.RUN_LIVE_LLM_TESTS !== '1') {
     t.skip('set RUN_LIVE_LLM_TESTS=1 to enable live remote-LLM smoke tests');
+    return;
+  }
+
+  if (hasProxyEnv(process.env) && !(await canLoadUndici())) {
+    t.skip('proxy environment detected but undici is unavailable to provide proxy dispatch support for live smoke tests');
     return;
   }
 

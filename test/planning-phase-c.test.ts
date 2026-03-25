@@ -55,10 +55,28 @@ test('phase3/cognition: successful proposal path still submits a workflow throug
 
 test('phase3/cognition: router selects remote backend metadata when online preference is remote', async () => {
   const platform = new SmoosAdapter();
+  const remoteBackend = new (await import('../src/cognition/remote-llm-backend.ts')).RemoteLlmCognitionBackend({
+    profile: {
+      providerId: 'xai',
+      modelId: 'grok-4.20-beta-latest-non-reasoning',
+      baseUrl: 'https://api.x.ai/v1',
+      apiKeySecretRef: 'env:XAI_API_KEY',
+      store: false,
+    },
+    secretResolver: new (await import('../src/secrets/env-resolver.ts')).EnvironmentSecretResolver({ XAI_API_KEY: 'test-key' }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      output_text: JSON.stringify({
+        type: 'proposal',
+        steps: [
+          { id: 'phase-c-remote-step-1', description: 'Create task via remote cognition', capability: 'workflow:submit' },
+        ],
+      }),
+    }), { status: 200, headers: { 'content-type': 'application/json' } }),
+  });
   const orchestrator = new OverlordOrchestrator({
     platform,
     executionProvider: new InMemoryExecutionProvider(),
-    cognitionBackend: new RoutedCognitionBackend(),
+    cognitionBackend: new RoutedCognitionBackend({ remoteBackend }),
     connectivityProbe: { getStatus: () => 'online' },
   });
 
