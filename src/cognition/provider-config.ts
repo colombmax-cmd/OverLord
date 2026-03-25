@@ -50,14 +50,16 @@ export function readRemoteLlmProviderProfileFromConfig(config: OverlordUserConfi
     return null;
   }
 
-  const provider = getRequiredRemoteLlmProvider(configured.providerId);
+    const providerId = readRequiredConfigString(configured.providerId, 'remoteLlm.providerId')?.toLowerCase();
+  const provider = getRequiredRemoteLlmProvider(providerId);
+  const modelId = readNonEmptyString(configured.modelId) || getDefaultRemoteModel(provider.providerId).modelId;
 
   return {
     providerId: provider.providerId,
-    modelId: configured.modelId.trim() || getDefaultRemoteModel(provider.providerId).modelId,
-    baseUrl: (configured.baseUrl?.trim() || provider.baseUrl).replace(/\/$/, ''),
-    apiKeySecretRef: configured.apiKeySecretRef.trim(),
-    store: configured.store,
+    modelId,
+    baseUrl: normalizeRemoteLlmBaseUrl(configured.baseUrl, provider.baseUrl),
+    apiKeySecretRef: readRequiredConfigString(configured.apiKeySecretRef, 'remoteLlm.apiKeySecretRef'),
+    store: readRequiredConfigBoolean(configured.store, 'remoteLlm.store'),
   };
 }
 
@@ -124,10 +126,13 @@ function getRequiredRemoteLlmProvider(providerId: string): RemoteLlmProviderCata
 
 function readProviderBaseUrlFromEnv(provider: RemoteLlmProviderCatalogEntry, env: NodeJS.ProcessEnv): string {
   const directBaseUrlEnvVar = `${provider.providerId.toUpperCase()}_BASE_URL`;
-  return (env.OVERLORD_REMOTE_LLM_BASE_URL?.trim()
-    || env[`${provider.envPrefix}_BASE_URL`]?.trim()
-    || env[directBaseUrlEnvVar]?.trim()
-    || provider.baseUrl).replace(/\/$/, '');
+  return normalizeRemoteLlmBaseUrl(
+    env.OVERLORD_REMOTE_LLM_BASE_URL
+      || env[`${provider.envPrefix}_BASE_URL`]
+      || env[directBaseUrlEnvVar]
+      || provider.baseUrl,
+    provider.baseUrl,
+  );
 }
 
 function readProviderStoreFromEnv(provider: RemoteLlmProviderCatalogEntry, env: NodeJS.ProcessEnv): boolean {
@@ -168,4 +173,45 @@ function readNonEmptyString(value: unknown): string | null {
 
   const normalized = value.trim();
   return normalized ? normalized : null;
+}
+
+export function normalizeRemoteLlmBaseUrl(rawValue: string | undefined, fallbackBaseUrl?: string): string {
+  const value = readNonEmptyString(rawValue) || fallbackBaseUrl;
+  if (!value) {
+    throw new Error('remote-LLM baseUrl is required');
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(value);
+  } catch (error) {
+    throw new Error(`remote-LLM baseUrl must be a valid absolute URL: ${toErrorMessage(error)}`);
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error(`remote-LLM baseUrl must use http or https, received ${parsedUrl.protocol}`);
+  }
+
+  return value.replace(/\/$/, '');
+}
+
+function readRequiredConfigString(value: unknown, fieldName: string): string {
+  const normalized = readNonEmptyString(value);
+  if (!normalized) {
+    throw new Error(`invalid persisted remote-LLM config: ${fieldName} must be a non-empty string`);
+  }
+
+  return normalized;
+}
+
+function readRequiredConfigBoolean(value: unknown, fieldName: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw new Error(`invalid persisted remote-LLM config: ${fieldName} must be a boolean`);
+  }
+
+  return value;
+}
+
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

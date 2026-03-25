@@ -85,7 +85,7 @@ Default runtime behavior:
 - `OVERLORD_USE_LOCAL_SMOOS=1` switches back to the in-repo `SmoosAdapter` stub for offline development.
 
 
-## Offline cognition phase A
+## Current capabilities
 
 Overlord now includes an offline-first cognitive backend path for local planning:
 - supported local models are declared in a registry (`src/cognition/model-registry.ts`)
@@ -97,9 +97,8 @@ Overlord now includes an offline-first cognitive backend path for local planning
 - user intent can now override the remote-LLM provider/model selection through `payload.remoteLlm` (or `remoteLlmProvider` / `remoteLlmModel`) while still falling back to the selected provider defaults
 - remote-LLM can also be configured through the product CLI and persisted in `~/.config/overlord/{config,secrets}.json` (or `OVERLORD_CONFIG_DIR`) without requiring provider/model/secret env vars at runtime
 
-Expected dependency contract:
-- for `smo-os`, Overlord can bridge to the installed git dependency even though the package does not expose a JS entrypoint, or
-- for other compatible packages, Overlord accepts a factory such as `createPlosAdapter()`, `createSmoosAdapter()`, `createProtocolAdapter()`, or `createAdapter()`, or a ready-to-use adapter object via `default`, `plosAdapter`, `smoosAdapter`, or `adapter`.
+
+For precedence, file locations, validation rules, and live-smoke notes, see [`doc/remote-llm-configuration.md`](./doc/remote-llm-configuration.md).
 
 ## Documentation
 

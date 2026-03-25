@@ -19,55 +19,62 @@ export async function runRemoteLlmConfigCli(
   const [command, ...rest] = args;
 
   if (command === 'set') {
-    const parsed = parseFlags(rest);
-    const providerId = requiredFlag(parsed, 'provider')?.toLowerCase();
-    const provider = getSupportedRemoteLlmProvider(providerId);
-    if (!provider) {
-      io.stderr(`Unsupported remote-LLM provider: ${providerId}`);
+    try {
+      const parsed = parseFlags(rest);
+      const providerId = requiredFlag(parsed, 'provider')?.toLowerCase();
+      const provider = getSupportedRemoteLlmProvider(providerId);
+      if (!provider) {
+        io.stderr(`Unsupported remote-LLM provider: ${providerId}`);
+        return 1;
+      }
+
+      const modelId = requiredFlag(parsed, 'model');
+      const apiKey = requiredFlag(parsed, 'api-key');
+      const baseUrl = normalizeRemoteLlmBaseUrl(parsed['base-url'], provider.baseUrl);
+      const store = parseStoreFlag(parsed.store, provider.defaultStore);
+
+      writeRemoteLlmUserConfig({
+        providerId: provider.providerId,
+        modelId,
+        apiKey,
+        baseUrl,
+        store,
+      }, env);
+
+      const paths = getOverlordConfigPaths(env);
+      io.stdout(`Saved remote-LLM config for provider '${provider.providerId}' in ${paths.configFile}`);
+      io.stdout(`Stored remote-LLM secret in ${paths.secretsFile}`);
+      return 0;
+    } catch (error) {
+      io.stderr(error instanceof Error ? error.message : String(error));
+      io.stderr(renderUsage());
       return 1;
     }
-
-    const modelId = requiredFlag(parsed, 'model');
-    const apiKey = requiredFlag(parsed, 'api-key');
-    const baseUrl = parsed['base-url']?.trim() || provider.baseUrl;
-    const store = readBooleanFlag(parsed.store) ?? provider.defaultStore;
-
-    writeRemoteLlmUserConfig({
-      providerId: provider.providerId,
-      modelId,
-      apiKey,
-      baseUrl,
-      store,
-    }, env);
-
-    const paths = getOverlordConfigPaths(env);
-    io.stdout(`Saved remote-LLM config for provider '${provider.providerId}' in ${paths.configFile}`);
-    io.stdout(`Stored remote-LLM secret in ${paths.secretsFile}`);
-    return 0;
   }
 
   if (command === 'show') {
-    const profile = readRemoteLlmProviderProfileFromConfig(readOverlordUserConfig(env));
-    if (!profile) {
-      io.stderr('No persisted remote-LLM config found.');
+    try {
+      const profile = readRemoteLlmProviderProfileFromConfig(readOverlordUserConfig(env));
+      if (!profile) {
+        io.stderr('No persisted remote-LLM config found.');
+        return 1;
+      }
+
+      io.stdout(JSON.stringify({
+        providerId: profile.providerId,
+        modelId: profile.modelId,
+        baseUrl: profile.baseUrl,
+        apiKeySecretRef: profile.apiKeySecretRef,
+        store: profile.store,
+      }, null, 2));
+      return 0;
+    } catch (error) {
+      io.stderr(error instanceof Error ? error.message : String(error));
       return 1;
     }
-
-    io.stdout(JSON.stringify({
-      providerId: profile.providerId,
-      modelId: profile.modelId,
-      baseUrl: profile.baseUrl,
-      apiKeySecretRef: profile.apiKeySecretRef,
-      store: profile.store,
-    }, null, 2));
-    return 0;
   }
 
-  io.stderr([
-    'Usage:',
-    '  node src/index.ts config remote-llm set --provider <xai|openai> --model <model> --api-key <secret> [--base-url <url>] [--store true|false]',
-    '  node src/index.ts config remote-llm show',
-  ].join('\n'));
+  io.stderr(renderUsage());
   return 1;
 }
 
@@ -102,9 +109,9 @@ function requiredFlag(flags: Record<string, string>, key: string): string {
   return value;
 }
 
-function readBooleanFlag(value: string | undefined): boolean | null {
+function parseStoreFlag(value: string | undefined, defaultValue: boolean): boolean {
   if (value === undefined) {
-    return null;
+    return defaultValue;
   }
 
   const normalized = value.trim().toLowerCase();
@@ -116,5 +123,13 @@ function readBooleanFlag(value: string | undefined): boolean | null {
     return false;
   }
 
-  return null;
+  throw new Error(`invalid --store value: ${value}. Expected true|false|1|0`);
+}
+
+function renderUsage(): string {
+  return [
+    'Usage:',
+    '  node src/index.ts config remote-llm set --provider <xai|openai> --model <model> --api-key <secret> [--base-url <url>] [--store true|false]',
+    '  node src/index.ts config remote-llm show',
+  ].join('\n');
 }

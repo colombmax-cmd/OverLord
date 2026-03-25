@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { DeterministicRemoteCognitionBackend } from '../src/cognition/remote-backend.ts';
 import { RoutedCognitionBackend } from '../src/cognition/router-backend.ts';
 
 const memoryView = {
@@ -34,7 +35,7 @@ function buildIntent(payload: Record<string, unknown>) {
 }
 
 test('phaseB/cognition: router selects remote backend when online and remote is preferred', async () => {
-  const backend = new RoutedCognitionBackend();
+  const backend = new RoutedCognitionBackend({ remoteBackend: new DeterministicRemoteCognitionBackend() });
   const decision = await backend.decide({
     connectivityStatus: 'online',
     intent: buildIntent({ title: 'route remote', cognitionPreference: 'remote' }),
@@ -49,7 +50,7 @@ test('phaseB/cognition: router selects remote backend when online and remote is 
 });
 
 test('phaseB/cognition: router falls back to local when remote is preferred but connectivity is offline', async () => {
-  const backend = new RoutedCognitionBackend();
+  const backend = new RoutedCognitionBackend({ remoteBackend: new DeterministicRemoteCognitionBackend() });
   const decision = await backend.decide({
     connectivityStatus: 'offline',
     intent: buildIntent({ title: 'route local fallback', cognitionPreference: 'remote' }),
@@ -64,7 +65,7 @@ test('phaseB/cognition: router falls back to local when remote is preferred but 
 });
 
 test('phaseB/cognition: router returns no_action when remote cognition is required but unavailable', async () => {
-  const backend = new RoutedCognitionBackend();
+  const backend = new RoutedCognitionBackend({ remoteBackend: new DeterministicRemoteCognitionBackend() });
   const decision = await backend.decide({
     connectivityStatus: 'degraded',
     intent: buildIntent({ title: 'must be remote', cognitionPreference: 'remote', requiresRemoteCognition: true }),
