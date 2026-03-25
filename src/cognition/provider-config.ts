@@ -50,7 +50,7 @@ export function readRemoteLlmProviderProfileFromConfig(config: OverlordUserConfi
     return null;
   }
 
-  const providerId = readRequiredConfigString(configured.providerId, 'remoteLlm.providerId')?.toLowerCase();
+    const providerId = readRequiredConfigString(configured.providerId, 'remoteLlm.providerId')?.toLowerCase();
   const provider = getRequiredRemoteLlmProvider(providerId);
   const modelId = readNonEmptyString(configured.modelId) || getDefaultRemoteModel(provider.providerId).modelId;
 

@@ -1,3 +1,5 @@
+import { EnvHttpProxyAgent } from 'undici';
+
 import type { SecretResolver } from '../ports/secrets.ts';
 import type { CognitionBackend, CognitionContext, CognitionDecision, CognitiveExchange, SupportedModelProfile } from './interface.ts';
 import type { RemoteLlmProviderProfile } from './provider-config.ts';
