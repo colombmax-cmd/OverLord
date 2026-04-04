@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import type { IntentEnvelope } from '../models/core.ts';
 import { IntentValidationError } from './errors.ts';
 
@@ -33,13 +35,19 @@ export class IntentGateway {
       });
     }
 
-    const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id : this.generateId('intent');
+    const idSeed = {
+      actorId,
+      intentType,
+      schemaVersion,
+      payload: raw.payload,
+    };
+    const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id : this.generateDeterministicId('intent', idSeed);
     const timestamp =
       typeof raw.timestamp === 'string' && raw.timestamp.trim() ? raw.timestamp : new Date().toISOString();
     const correlationId =
       typeof raw.correlationId === 'string' && raw.correlationId.trim()
         ? raw.correlationId
-        : this.generateId('corr');
+        : this.generateDeterministicId('corr', idSeed);
 
     return {
       id,
@@ -71,7 +79,22 @@ export class IntentGateway {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
-  private generateId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  private generateDeterministicId(prefix: string, seed: Record<string, unknown>): string {
+    const digest = crypto.createHash('sha256').update(this.stableStringify(seed)).digest('hex');
+    return `${prefix}-${digest.slice(0, 16)}`;
+  }
+
+  private stableStringify(value: unknown): string {
+    if (value === null || typeof value !== 'object') {
+      return JSON.stringify(value);
+    }
+
+    if (Array.isArray(value)) {
+      return `[${value.map((entry) => this.stableStringify(entry)).join(',')}]`;
+    }
+
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${this.stableStringify(entry)}`).join(',')}}`;
   }
 }

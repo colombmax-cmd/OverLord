@@ -26,3 +26,38 @@ test('phase4/execution-freeze: provider emits submitted then completed transitio
 
   assert.deepEqual(states, ['submitted', 'completed']);
 });
+
+test('phase4/execution-freeze: provider cancel transitions workflow to cancelled and appends cancelled event', async () => {
+  const { executionProvider } = buildConformanceHarness();
+  const plan = {
+    id: 'intent-phase4-cancel:plan',
+    timestamp: new Date().toISOString(),
+    actorId: 'phase4-user',
+    correlationId: 'corr-phase4-cancel',
+    schemaVersion: 'v1',
+    intentId: 'intent-phase4-cancel',
+    steps: [
+      {
+        id: 'intent-phase4-cancel:step:1',
+        description: 'phase4 cancellation coverage',
+        capability: 'workflow:submit',
+      },
+    ],
+    planVersion: 1,
+    frozenAt: new Date().toISOString(),
+    planHash: 'phase4-cancel-hash',
+  } as const;
+
+  const { workflowId } = await executionProvider.submitWorkflow(plan);
+  await executionProvider.cancelWorkflow(workflowId);
+
+  const state = await executionProvider.getWorkflowState(workflowId);
+  assert.equal(state.state, 'cancelled');
+
+  const states: string[] = [];
+  for await (const event of executionProvider.subscribeEvents(workflowId)) {
+    states.push(event.state);
+  }
+
+  assert.deepEqual(states, ['submitted', 'completed', 'cancelled']);
+});

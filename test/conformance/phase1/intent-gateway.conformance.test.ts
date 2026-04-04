@@ -13,6 +13,22 @@ test('phase1/intent-gateway: generates correlationId and default schemaVersion w
   assert.ok(normalized.correlationId.startsWith('corr-'));
 });
 
+test('phase1/intent-gateway: generated identifiers are deterministic for identical raw input', () => {
+  const { intentGateway } = buildConformanceHarness();
+  const rawIntent = validRawIntent({
+    schemaVersion: undefined,
+    correlationId: undefined,
+    id: undefined,
+    timestamp: undefined,
+  });
+
+  const first = intentGateway.normalize(rawIntent);
+  const second = intentGateway.normalize(rawIntent);
+
+  assert.equal(first.id, second.id);
+  assert.equal(first.correlationId, second.correlationId);
+});
+
 test('phase1/intent-gateway: rejects unsupported schemaVersion', () => {
   const { intentGateway } = buildConformanceHarness();
 
