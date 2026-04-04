@@ -1,5 +1,5 @@
 import { getSupportedRemoteLlmProvider } from '../cognition/model-registry.ts';
-import { readRemoteLlmProviderProfileFromConfig } from '../cognition/provider-config.ts';
+import { normalizeRemoteLlmBaseUrl, readRemoteLlmProviderProfileFromConfig } from '../cognition/provider-config.ts';
 import {
   getOverlordConfigPaths,
   readOverlordUserConfig,

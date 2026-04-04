@@ -87,15 +87,11 @@ Default runtime behavior:
 
 ## Current capabilities
 
-Overlord now includes an offline-first cognitive backend path for local planning:
-- supported local models are declared in a registry (`src/cognition/model-registry.ts`)
-- the default supported model is `Qwen/Qwen2.5-1.5B-Instruct`
-- connectivity is tracked separately from cognition so future online routing can be added without changing the orchestrator contract
-- PLOS events and audits now capture cognitive decisions plus significant exchange summaries
-- Phase B adds hybrid routing so Overlord can prefer a remote cognition backend when online, while preserving local-first fallback and explicit no-action when remote cognition is mandatory but unavailable
-- Phase Online-Prep adds an env-configured remote-LLM backend with a multi-provider catalogue (`xai`, `openai`), product-style secret refs by default (`product:xai_api_key`, `product:openai_api_key`) with env/file fallback support, and opt-in live smoke tests guarded by `RUN_LIVE_LLM_TESTS=1`
-- user intent can now override the remote-LLM provider/model selection through `payload.remoteLlm` (or `remoteLlmProvider` / `remoteLlmModel`) while still falling back to the selected provider defaults
-- remote-LLM can also be configured through the product CLI and persisted in `~/.config/overlord/{config,secrets}.json` (or `OVERLORD_CONFIG_DIR`) without requiring provider/model/secret env vars at runtime
+- offline-first local cognition backend with deterministic proposal fallback
+- hybrid cognition routing (local/remote) with route metadata
+- env + persisted remote-LLM provider/profile support (`xai`, `openai`)
+- remote-LLM response hardening (HTTP errors, malformed JSON, fenced JSON parsing)
+- phase-based conformance and runtime suites for policy/planning/execution behavior
 
 
 For precedence, file locations, validation rules, and live-smoke notes, see [`doc/remote-llm-configuration.md`](./doc/remote-llm-configuration.md).

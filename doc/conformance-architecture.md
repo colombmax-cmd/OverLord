@@ -26,6 +26,8 @@ test/
       planning.conformance.test.ts
     phase4/
       execution-freeze.conformance.test.ts
+    phase5/
+      traceability.conformance.test.ts
 ```
 
 ## Coverage currently implemented
@@ -54,6 +56,11 @@ test/
 - Submission transition coverage (`submitted` -> terminal states).
 - Event sequencing expectations between planning/execution/audit layers.
 
+### Phase 5 — audit E2E and traceability
+- Correlation/run ID continuity across the full successful path.
+- Baseline audit-integrity checks on required event taxonomy and timestamps.
+- One-intent timeline reconstruction from emitted audit log events.
+
 ## Runtime-level complements (outside `test/conformance/`)
 
 In addition to strict conformance suites, Overlord uses runtime-oriented tests for:
@@ -66,6 +73,6 @@ These are intentionally adjacent to conformance tests because they validate oper
 
 ## Recommended evolution
 
-- Add **Phase 5** conformance for traceability/audit integrity invariants.
 - Add **Phase 6** portability conformance with at least two adapter/provider implementations.
+- Add chain-integrity assertions once audit hash-linking (`prevEventHash`/`eventHash`) is enabled in runtime records.
 - Add a compact matrix mapping MVP done criteria to conformance + runtime test files.
