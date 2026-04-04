@@ -73,11 +73,16 @@ Responsibilities:
 ## 3.1 PLOS Adapter Interface
 
 Required operations:
-- `check_capability(request) -> decision`
-- `read_events(query, capability) -> events`
-- `write_event(event, capability) -> ack`
-- `publish_projection(payload, policy, capability) -> projection_ref`
-- `emit_audit(audit_event) -> ack`
+- `evaluateCapability(request) -> decision`
+- `getAuthorizedMemoryView(request, grant?) -> memory_view`
+- `getStructureView(request) -> structure_view`
+- `appendEvent(event) -> ack`
+- `readAllEvents() -> events`
+- `appendAuditRecord(record) -> ack`
+
+Compatibility note:
+- historical names (`check_capability`, `read_events`, `write_event`, `emit_audit`) are considered legacy aliases in older drafts.
+- the runtime and adapters use the camelCase contract above as the source of truth.
 
 Constraint:
 - Adapter must be implementation-agnostic (Smo.OS first target, not exclusive target).
