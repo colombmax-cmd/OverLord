@@ -113,3 +113,19 @@ npm run test:conformance
 npm run dev
 ```
 
+## Remote-LLM configuration CLI
+
+Persist a remote provider/model/secret locally:
+
+```bash
+node src/index.ts config remote-llm set \
+  --provider xai \
+  --model grok-4.20-beta-latest-non-reasoning \
+  --api-key "$XAI_API_KEY"
+```
+
+Inspect the persisted non-secret profile:
+
+```bash
+node src/index.ts config remote-llm show
+```
