@@ -156,6 +156,213 @@ test('phaseOnline/remote-llm: backend sends bearer auth to /responses and parses
   }
 });
 
+test('phaseOnline/remote-llm: backend accepts fenced JSON responses and normalizes duplicate step ids', async () => {
+  const backend = new RemoteLlmCognitionBackend({
+    profile: {
+      providerId: 'xai',
+      modelId: 'grok-4.20-beta-latest-non-reasoning',
+      baseUrl: 'https://api.x.ai/v1',
+      apiKeySecretRef: 'env:XAI_API_KEY',
+      store: false,
+    },
+    secretResolver: new EnvironmentSecretResolver({ XAI_API_KEY: 'xai-test-key' }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      output_text: [
+        '```json',
+        JSON.stringify({
+          type: 'proposal',
+          steps: [
+            { id: 'dup-step', description: 'First remote step', capability: 'workflow:submit' },
+            { id: 'dup-step', description: 'Second remote step', capability: 'workflow:submit' },
+          ],
+        }),
+        '```',
+      ].join('\n'),
+    }), { status: 200, headers: { 'content-type': 'application/json' } }),
+  });
+
+  const decision = await backend.decide({
+    connectivityStatus: 'online',
+    intent: {
+      id: 'intent-online-fenced-1',
+      timestamp: new Date().toISOString(),
+      actorId: 'phase-online-user',
+      correlationId: 'corr-online-fenced-1',
+      schemaVersion: 'v1',
+      intentType: 'task.create',
+      payload: { title: 'use fenced json' },
+    },
+    memoryView,
+  });
+
+  assert.equal(decision.proposal.type, 'proposal');
+  if (decision.proposal.type === 'proposal') {
+    assert.deepEqual(
+      decision.proposal.steps.map((step) => step.id),
+      ['dup-step', 'dup-step-2'],
+    );
+  }
+  assert.match(decision.transcript[1]?.summary ?? '', /parser=remote_fenced_json/);
+});
+
+test('phaseOnline/remote-llm: backend falls back deterministically when remote schema is invalid', async () => {
+  const backend = new RemoteLlmCognitionBackend({
+    profile: {
+      providerId: 'xai',
+      modelId: 'grok-4.20-beta-latest-non-reasoning',
+      baseUrl: 'https://api.x.ai/v1',
+      apiKeySecretRef: 'env:XAI_API_KEY',
+      store: false,
+    },
+    secretResolver: new EnvironmentSecretResolver({ XAI_API_KEY: 'xai-test-key' }),
+    fetchImpl: async () => new Response(JSON.stringify({
+      output_text: JSON.stringify({
+        type: 'proposal',
+        steps: [
+          { id: 'broken-step', description: '   ', capability: 'workflow:submit' },
+        ],
+      }),
+    }), { status: 200, headers: { 'content-type': 'application/json' } }),
+  });
+
+  const decision = await backend.decide({
+    connectivityStatus: 'online',
+    intent: {
+      id: 'intent-online-invalid-schema-1',
+      timestamp: new Date().toISOString(),
+      actorId: 'phase-online-user',
+      correlationId: 'corr-online-invalid-schema-1',
+      schemaVersion: 'v1',
+      intentType: 'task.create',
+      payload: { title: 'fallback task' },
+    },
+    memoryView,
+  });
+
+  assert.equal(decision.proposal.type, 'proposal');
+  if (decision.proposal.type === 'proposal') {
+    assert.equal(decision.proposal.steps[0].description, "Create task 'fallback task'");
+  }
+  assert.match(decision.transcript[1]?.summary ?? '', /parser=deterministic_fallback/);
+  assert.match(decision.transcript[1]?.summary ?? '', /issue=invalid_remote_schema/);
+});
+
+test('phaseOnline/remote-llm: backend surfaces response status and body on HTTP failures', async () => {
+  const backend = new RemoteLlmCognitionBackend({
+    profile: {
+      providerId: 'xai',
+      modelId: 'grok-4.20-beta-latest-non-reasoning',
+      baseUrl: 'https://api.x.ai/v1',
+      apiKeySecretRef: 'env:XAI_API_KEY',
+      store: false,
+    },
+    secretResolver: new EnvironmentSecretResolver({ XAI_API_KEY: 'xai-test-key' }),
+    fetchImpl: async () => new Response(
+      JSON.stringify({ error: { message: 'rate limited' } }),
+      { status: 429, statusText: 'Too Many Requests', headers: { 'content-type': 'application/json' } },
+    ),
+  });
+
+  await assert.rejects(
+    () => backend.decide({
+      connectivityStatus: 'online',
+      intent: {
+        id: 'intent-online-http-failure-1',
+        timestamp: new Date().toISOString(),
+        actorId: 'phase-online-user',
+        correlationId: 'corr-online-http-failure-1',
+        schemaVersion: 'v1',
+        intentType: 'task.create',
+        payload: { title: 'status failure' },
+      },
+      memoryView,
+    }),
+    /remote-LLM request failed .* status 429 Too Many Requests; body=\{"error":\{"message":"rate limited"\}\}/,
+  );
+});
+
+test('phaseOnline/remote-llm: backend rejects malformed JSON payloads from the responses API', async () => {
+  const backend = new RemoteLlmCognitionBackend({
+    profile: {
+      providerId: 'xai',
+      modelId: 'grok-4.20-beta-latest-non-reasoning',
+      baseUrl: 'https://api.x.ai/v1',
+      apiKeySecretRef: 'env:XAI_API_KEY',
+      store: false,
+    },
+    secretResolver: new EnvironmentSecretResolver({ XAI_API_KEY: 'xai-test-key' }),
+    fetchImpl: async () => new Response(
+      '{"output_text":',
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ),
+  });
+
+  await assert.rejects(
+    () => backend.decide({
+      connectivityStatus: 'online',
+      intent: {
+        id: 'intent-online-invalid-json-1',
+        timestamp: new Date().toISOString(),
+        actorId: 'phase-online-user',
+        correlationId: 'corr-online-invalid-json-1',
+        schemaVersion: 'v1',
+        intentType: 'task.create',
+        payload: { title: 'malformed response' },
+      },
+      memoryView,
+    }),
+    /remote-LLM response was not valid JSON/,
+  );
+});
+
+test('phaseOnline/remote-llm: backend forwards env proxy configuration to fetch when present', async () => {
+  const originalHttpsProxy = process.env.HTTPS_PROXY;
+  process.env.HTTPS_PROXY = 'http://proxy.internal:8080';
+
+  let sawDispatcher = false;
+
+  try {
+    const backend = new RemoteLlmCognitionBackend({
+      profile: {
+        providerId: 'xai',
+        modelId: 'grok-4.20-beta-latest-non-reasoning',
+        baseUrl: 'https://api.x.ai/v1',
+        apiKeySecretRef: 'env:XAI_API_KEY',
+        store: false,
+      },
+      secretResolver: new EnvironmentSecretResolver({ XAI_API_KEY: 'xai-test-key' }),
+      fetchImpl: async (_input, init) => {
+        sawDispatcher = Boolean((init as Record<string, unknown> | undefined)?.dispatcher);
+        return new Response(JSON.stringify({
+          output_text: JSON.stringify({ type: 'no_action', reason: 'proxy path used' }),
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      },
+    });
+
+    await backend.decide({
+      connectivityStatus: 'online',
+      intent: {
+        id: 'intent-online-proxy-1',
+        timestamp: new Date().toISOString(),
+        actorId: 'phase-online-user',
+        correlationId: 'corr-online-proxy-1',
+        schemaVersion: 'v1',
+        intentType: 'task.create',
+        payload: { title: 'proxy support' },
+      },
+      memoryView,
+    });
+  } finally {
+    if (originalHttpsProxy === undefined) {
+      delete process.env.HTTPS_PROXY;
+    } else {
+      process.env.HTTPS_PROXY = originalHttpsProxy;
+    }
+  }
+
+  assert.equal(sawDispatcher, true);
+});
+
 test('phaseOnline/remote-llm: backend honors user-selected provider and model overrides from the intent payload', async () => {
   let seenUrl = '';
   let seenAuthHeader = '';
