@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile as execFileCallback } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -149,6 +149,157 @@ test('remote-llm/config-cli: src/index.ts exposes the remote-llm config entrypoi
 
     assert.match(showResult.stdout, /"providerId": "xai"/);
     assert.doesNotMatch(showResult.stdout, /entrypoint-secret/);
+  } finally {
+    await rm(configDir, { recursive: true, force: true });
+  }
+});
+
+
+test('remote-llm/config-cli: default config paths respect HOME when OVERLORD_CONFIG_DIR is unset', async () => {
+  const fakeHome = await mkdtemp(join(tmpdir(), 'overlord-home-'));
+
+  try {
+    const paths = getOverlordConfigPaths({ ...process.env, HOME: fakeHome, OVERLORD_CONFIG_DIR: undefined });
+    assert.equal(paths.configDir, join(fakeHome, '.config', 'overlord'));
+    assert.equal(paths.configFile, join(fakeHome, '.config', 'overlord', 'config.json'));
+    assert.equal(paths.secretsFile, join(fakeHome, '.config', 'overlord', 'secrets.json'));
+  } finally {
+    await rm(fakeHome, { recursive: true, force: true });
+  }
+});
+
+test('remote-llm/config-cli: rewriting persisted secrets re-applies restrictive file permissions', async () => {
+  const configDir = await mkdtemp(join(tmpdir(), 'overlord-config-perms-'));
+  const env = { ...process.env, OVERLORD_CONFIG_DIR: configDir };
+
+  try {
+    await runRemoteLlmConfigCli([
+      'set',
+      '--provider', 'xai',
+      '--model', 'grok-4.20-beta-latest-non-reasoning',
+      '--api-key', 'first-secret',
+    ], {
+      stdout: () => {},
+      stderr: () => {},
+    }, env);
+
+    const paths = getOverlordConfigPaths(env);
+    await chmod(paths.secretsFile, 0o644);
+
+    await runRemoteLlmConfigCli([
+      'set',
+      '--provider', 'xai',
+      '--model', 'grok-4.20-beta-latest-non-reasoning',
+      '--api-key', 'second-secret',
+    ], {
+      stdout: () => {},
+      stderr: () => {},
+    }, env);
+
+    const secretStats = await stat(paths.secretsFile);
+    assert.equal(secretStats.mode & 0o777, 0o600);
+  } finally {
+    await rm(configDir, { recursive: true, force: true });
+  }
+});
+
+test('remote-llm/config-cli: missing required flags return usage instead of throwing', async () => {
+  const configDir = await mkdtemp(join(tmpdir(), 'overlord-config-flags-'));
+  const env = { ...process.env, OVERLORD_CONFIG_DIR: configDir };
+  const outputs: string[] = [];
+  const errors: string[] = [];
+
+  try {
+    const exitCode = await runRemoteLlmConfigCli([
+      'set',
+      '--provider', 'xai',
+      '--api-key', 'missing-model',
+    ], {
+      stdout: (message) => outputs.push(message),
+      stderr: (message) => errors.push(message),
+    }, env);
+
+    assert.equal(exitCode, 1);
+    assert.deepEqual(outputs, []);
+    assert.match(errors[0] ?? '', /missing required flag --model/);
+    assert.match(errors[1] ?? '', /Usage:/);
+  } finally {
+    await rm(configDir, { recursive: true, force: true });
+  }
+});
+
+
+test('remote-llm/config-cli: invalid --store values are rejected explicitly', async () => {
+  const configDir = await mkdtemp(join(tmpdir(), 'overlord-config-invalid-store-'));
+  const env = { ...process.env, OVERLORD_CONFIG_DIR: configDir };
+  const errors: string[] = [];
+
+  try {
+    const exitCode = await runRemoteLlmConfigCli([
+      'set',
+      '--provider', 'xai',
+      '--model', 'grok-4.20-beta-latest-non-reasoning',
+      '--api-key', 'cli-secret-123',
+      '--store', 'maybe',
+    ], {
+      stdout: () => {},
+      stderr: (message) => errors.push(message),
+    }, env);
+
+    assert.equal(exitCode, 1);
+    assert.match(errors[0] ?? '', /invalid --store value: maybe/);
+  } finally {
+    await rm(configDir, { recursive: true, force: true });
+  }
+});
+
+test('remote-llm/config-cli: invalid base URLs are rejected explicitly', async () => {
+  const configDir = await mkdtemp(join(tmpdir(), 'overlord-config-invalid-url-'));
+  const env = { ...process.env, OVERLORD_CONFIG_DIR: configDir };
+  const errors: string[] = [];
+
+  try {
+    const exitCode = await runRemoteLlmConfigCli([
+      'set',
+      '--provider', 'xai',
+      '--model', 'grok-4.20-beta-latest-non-reasoning',
+      '--api-key', 'cli-secret-123',
+      '--base-url', 'not-a-url',
+    ], {
+      stdout: () => {},
+      stderr: (message) => errors.push(message),
+    }, env);
+
+    assert.equal(exitCode, 1);
+    assert.match(errors[0] ?? '', /remote-LLM baseUrl must be a valid absolute URL/);
+  } finally {
+    await rm(configDir, { recursive: true, force: true });
+  }
+});
+
+test('remote-llm/config-cli: show reports malformed persisted config cleanly', async () => {
+  const configDir = await mkdtemp(join(tmpdir(), 'overlord-config-malformed-show-'));
+  const env = { ...process.env, OVERLORD_CONFIG_DIR: configDir };
+  const errors: string[] = [];
+
+  try {
+    const paths = getOverlordConfigPaths(env);
+    await writeFile(paths.configFile, JSON.stringify({
+      remoteLlm: {
+        providerId: 'xai',
+        modelId: 'grok-4.20-beta-latest-non-reasoning',
+        baseUrl: 'https://api.x.ai/v1',
+        store: true,
+      },
+    }, null, 2));
+
+    const exitCode = await runRemoteLlmConfigCli(['show'], {
+      stdout: () => {},
+      stderr: (message) => errors.push(message),
+    }, env);
+
+    assert.equal(exitCode, 1);
+    assert.match(errors[0] ?? '', /invalid persisted remote-LLM config: remoteLlm.apiKeySecretRef must be a non-empty string/);
   } finally {
     await rm(configDir, { recursive: true, force: true });
   }

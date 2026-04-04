@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -35,7 +35,7 @@ const DEFAULT_REMOTE_LLM_SECRET_NAME = 'remote_llm_api_key';
 export function getOverlordConfigPaths(env: NodeJS.ProcessEnv = process.env): OverlordConfigPaths {
   const configDir = resolve(
     env.OVERLORD_CONFIG_DIR?.trim()
-      || join(homedir(), '.config', 'overlord'),
+      || join(env.HOME?.trim() || homedir(), '.config', 'overlord'),
   );
 
   return {
@@ -95,6 +95,7 @@ function readJsonFile<T>(filePath: string): T | null {
 
 function writeJsonFile(filePath: string, value: unknown, mode = 0o644): void {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode });
+  chmodSync(filePath, mode);
 }
 
 function ensureParentDir(filePath: string): void {

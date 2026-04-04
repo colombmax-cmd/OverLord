@@ -68,7 +68,7 @@ export class RemoteLlmCognitionBackend implements CognitionBackend {
     }
 
     const requestUrl = `${profile.baseUrl}${provider.apiPath}`;
-    const dispatcher = createProxyDispatcher();
+    const dispatcher = await createProxyDispatcher();
 
     let response: Response;
     try {
@@ -157,7 +157,7 @@ export class RemoteLlmCognitionBackend implements CognitionBackend {
   }
 }
 
-function createProxyDispatcher(): EnvHttpProxyAgent | undefined {
+async function createProxyDispatcher(): Promise<object | undefined> {
   const hasProxy = Boolean(
     process.env.HTTPS_PROXY?.trim()
       || process.env.https_proxy?.trim()
@@ -165,7 +165,16 @@ function createProxyDispatcher(): EnvHttpProxyAgent | undefined {
       || process.env.http_proxy?.trim(),
   );
 
-  return hasProxy ? new EnvHttpProxyAgent() : undefined;
+  if (!hasProxy) {
+    return undefined;
+  }
+
+  try {
+    const { EnvHttpProxyAgent } = await import('undici');
+    return new EnvHttpProxyAgent();
+  } catch {
+    return { kind: 'env-proxy-configured-without-undici' };
+  }
 }
 
 async function parseResponsesApiPayload(response: Response, requestUrl: string): Promise<RemoteLlmResponsesApiResult> {
