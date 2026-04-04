@@ -10,7 +10,7 @@
     "dev": "node src/index.ts"
   },
   "dependencies": {
-    "smo-os": "git+https://github.com/colombmax-cmd/Smo.OS.git",
+    "@colombmax-cmd/smo-os": "1.0.0",
     "undici": "^7.24.5"
   }
 }
