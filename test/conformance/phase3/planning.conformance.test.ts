@@ -36,3 +36,17 @@ test('phase3/cognition: returns no_action when payload requests no action', asyn
   assert.equal(result.reason, 'explicit no-action requested by payload');
   assert.ok(platform.getAuditTrail().some((audit) => audit.eventType === 'overlord.no_action'));
 });
+
+test('phase3/cognition: returns proposal in cognitive session mode without workflow transitions', async () => {
+  const { orchestrator, platform } = buildConformanceHarness();
+  const result = await orchestrator.processRawIntent(
+    validRawIntent({ payload: { title: 'cognitive-only alpha run', sessionMode: 'cognitive' } }),
+  );
+
+  assert.equal(result.outcome, 'proposal');
+  assert.equal(result.workflowId, undefined);
+  assert.equal(result.plan?.steps.length, 1);
+  assert.equal(result.steps?.length, 1);
+  assert.ok(platform.getAuditTrail().some((audit) => audit.eventType === 'overlord.proposal_ready'));
+  assert.equal((await platform.readAllEvents()).filter((event) => event.type.startsWith('overlord.workflow/')).length, 0);
+});
