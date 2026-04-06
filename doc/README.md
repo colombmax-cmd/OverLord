@@ -14,6 +14,7 @@
 ## Operations
 
 - [Remote-LLM Configuration](./remote-llm-configuration.md): precedence rules, persisted config, CLI behavior, secrets, and live-smoke guidance.
+- [Alpha Runbook](./alpha-runbook.md): quickstart, fallback behavior, traceability checklist, and known limitations.
 
 ## Testing and conformance
 

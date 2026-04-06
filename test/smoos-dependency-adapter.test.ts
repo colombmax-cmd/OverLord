@@ -6,7 +6,11 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
-import { createSmoosDependencyAdapter } from '../adapters/plos/smoos_dependency_adapter.ts';
+import {
+  createSmoosDependencyAdapter,
+  DEFAULT_SMOOS_MODULE,
+  LEGACY_SMOOS_MODULE,
+} from '../adapters/plos/smoos_dependency_adapter.ts';
 
 const fixtureModulePath = pathToFileURL(path.resolve('test/fixtures/smoos-dependency-fixture.ts')).href;
 
@@ -27,18 +31,22 @@ test('createSmoosDependencyAdapter can use an explicit adapter export name', asy
   assert.equal(capability.allowed, true);
 });
 
-test('createSmoosDependencyAdapter bridges the installed Smo.OS git dependency', async (t) => {
+test('createSmoosDependencyAdapter bridges the installed Smo.OS package dependency', async (t) => {
   const require = createRequire(import.meta.url);
 
   let packagePath: string | null = null;
   try {
-    packagePath = require.resolve('smo-os/package.json');
+    packagePath = require.resolve(`${DEFAULT_SMOOS_MODULE}/package.json`);
   } catch {
-    packagePath = null;
+    try {
+      packagePath = require.resolve(`${LEGACY_SMOOS_MODULE}/package.json`);
+    } catch {
+      packagePath = null;
+    }
   }
 
   if (!packagePath) {
-    t.skip('smo-os git dependency is not installed in this environment');
+    t.skip('smo-os package dependency is not installed in this environment');
     return;
   }
 
