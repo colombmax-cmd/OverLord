@@ -1,5 +1,16 @@
 # Alpha Runbook (Sprint 2)
 
+## One-command bootstrap
+
+```bash
+bash scripts/alpha-first-run.sh
+```
+
+This command:
+- installs dependencies (`npm ci`)
+- runs `intent health`
+- runs one cognitive-only smoke intent with timeline output
+
 ## Quickstart (local cognitive-first)
 
 ```bash
