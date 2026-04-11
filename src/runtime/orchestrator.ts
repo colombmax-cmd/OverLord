@@ -26,10 +26,11 @@ export interface OrchestratorDependencies {
 }
 
 export interface ProcessIntentResult {
-  outcome: 'workflow_submitted' | 'clarification_required' | 'scope_request' | 'no_action';
+  outcome: 'proposal' | 'workflow_submitted' | 'clarification_required' | 'scope_request' | 'no_action';
   workflowId?: string;
   workflowState?: string;
   plan?: WorkflowPlan;
+  steps?: WorkflowStep[];
   clarificationQuestion?: string;
   missingCapability?: string;
   reason?: string;
@@ -38,8 +39,10 @@ export interface ProcessIntentResult {
     connectivityStatus: string;
     modelId: string;
     proposalType: string;
+    selectedBackend: string;
     transcriptLength: number;
     routeReason: string;
+    fallbackReason?: string;
     requestedPreference: string;
     attemptedBackends: string[];
     fallbackApplied: boolean;
@@ -124,8 +127,10 @@ export class OverlordOrchestrator {
       connectivityStatus: cognition.connectivityStatus,
       modelId: cognition.selectedModel.modelId,
       proposalType: cognition.proposal.type,
+      selectedBackend: cognition.route.selectedBackend,
       transcriptLength: cognition.transcript.length,
       routeReason: cognition.route.reason,
+      fallbackReason: cognition.route.fallbackApplied ? cognition.route.reason : undefined,
       requestedPreference: cognition.route.requestedPreference,
       attemptedBackends: cognition.route.attemptedBackends,
       fallbackApplied: cognition.route.fallbackApplied,
@@ -193,6 +198,29 @@ export class OverlordOrchestrator {
       ...cognitionSummary,
     });
 
+    if (this.isCognitiveOnlySession(intent)) {
+      await this.platform.appendEvent(createPlanningDecisionEvent(intent.id, 'proposal_ready', {
+        steps: plan.steps,
+        planHash: plan.planHash,
+        planVersion: plan.planVersion,
+        modelId: cognition.selectedModel.modelId,
+        route: cognition.route,
+      }));
+      await this.emitAudit(intent, 'proposal_ready', {
+        steps: plan.steps.length,
+        planHash: plan.planHash,
+        planVersion: plan.planVersion,
+        reason: 'cognitive session mode skips workflow submission',
+        ...cognitionSummary,
+      });
+      return {
+        outcome: 'proposal',
+        plan,
+        steps: plan.steps,
+        cognition: cognitionSummary,
+      };
+    }
+
     const { workflowId } = await this.executionProvider.submitWorkflow(plan);
     await this.emitAudit(intent, 'workflow_submitted', { workflowId, planHash: plan.planHash, ...cognitionSummary });
 
@@ -238,6 +266,15 @@ export class OverlordOrchestrator {
     }
 
     return intent.payload.preferRemoteCognition === true ? 'remote' : 'auto';
+  }
+
+  private isCognitiveOnlySession(intent: IntentEnvelope): boolean {
+    const sessionMode = intent.payload.sessionMode;
+    if (sessionMode === 'cognitive') {
+      return true;
+    }
+
+    return intent.payload.cognitiveOnly === true;
   }
 
   private buildPlan(intent: IntentEnvelope, steps: WorkflowStep[]): WorkflowPlan {

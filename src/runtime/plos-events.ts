@@ -40,7 +40,7 @@ export function createPlanGeneratedEvent(plan: WorkflowPlan): PlosEvent {
 
 export function createPlanningDecisionEvent(
   entityId: string,
-  decisionType: 'clarification_requested' | 'scope_requested' | 'no_action',
+  decisionType: 'proposal_ready' | 'clarification_requested' | 'scope_requested' | 'no_action',
   payload: Record<string, unknown>,
 ): PlosEvent {
   return buildEvent(`overlord.planning/${decisionType}`, entityId, payload);
