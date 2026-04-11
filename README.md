@@ -116,6 +116,12 @@ npm run test:conformance
 npm run dev
 ```
 
+Or run the alpha bootstrap helper:
+
+```bash
+bash scripts/alpha-first-run.sh
+```
+
 ## Remote-LLM configuration CLI
 
 Persist a remote provider/model/secret locally:
@@ -131,6 +137,38 @@ Inspect the persisted non-secret profile:
 
 ```bash
 node src/index.ts config remote-llm show
+```
+
+## Intent CLI (alpha UX lot 1)
+
+Run an intent with a minimal human-readable UX shell in terminal:
+
+```bash
+node src/index.ts intent run --title "Préparer la démo alpha"
+```
+
+Run in cognitive-only mode (proposal without workflow submission):
+
+```bash
+node src/index.ts intent run --title "Préparer la démo alpha" --cognitive-only true
+```
+
+Machine-readable mode:
+
+```bash
+node src/index.ts intent run --title "Préparer la démo alpha" --output json
+```
+
+Show run timeline (correlation/audit-oriented view) after execution:
+
+```bash
+node src/index.ts intent run --title "Préparer la démo alpha" --show-timeline true
+```
+
+Run connectivity/config health checks (alpha UX lot 3):
+
+```bash
+node src/index.ts intent health
 ```
 
 ## Cognitive session mode (alpha)
