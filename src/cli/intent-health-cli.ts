@@ -25,7 +25,13 @@ export async function runIntentHealthCli(
     `Connectivity: ${options.connectivityStatus}`,
     `Config file: ${configPaths.configFile}`,
     `Secrets file: ${configPaths.secretsFile}`,
+    `Local runtime enabled: ${env.OVERLORD_LOCAL_LLM_ENABLED === '1' ? 'yes' : 'no'}`,
   ];
+
+  if (env.OVERLORD_LOCAL_LLM_ENABLED === '1') {
+    lines.push(`Local runtime base URL: ${(env.OVERLORD_LOCAL_LLM_BASE_URL ?? 'http://127.0.0.1:11434').replace(/\/$/, '')}`);
+    lines.push(`Local runtime model: ${env.OVERLORD_LOCAL_LLM_MODEL ?? 'qwen2.5:1.5b-instruct'}`);
+  }
 
   if (configProfile) {
     lines.push(`Remote profile source: config (${configProfile.providerId}/${configProfile.modelId})`);

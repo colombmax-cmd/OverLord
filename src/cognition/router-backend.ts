@@ -1,6 +1,6 @@
 import type { CognitionBackend, CognitionBackendKind, CognitionContext, CognitionDecision, CognitionPreference, SupportedModelProfile } from './interface.ts';
+import { createDefaultLocalCognitionBackend } from './default-local-backend.ts';
 import { createDefaultRemoteCognitionBackend } from './default-remote-backend.ts';
-import { DeterministicLocalCognitionBackend } from './local-backend.ts';
 
 export interface RoutedCognitionBackendOptions {
   localBackend?: CognitionBackend;
@@ -15,7 +15,7 @@ export class RoutedCognitionBackend implements CognitionBackend {
   private readonly remoteBackend: CognitionBackend;
 
   constructor(options: RoutedCognitionBackendOptions = {}) {
-    this.localBackend = options.localBackend ?? new DeterministicLocalCognitionBackend();
+    this.localBackend = options.localBackend ?? createDefaultLocalCognitionBackend();
     this.remoteBackend = options.remoteBackend ?? createDefaultRemoteCognitionBackend();
     this.defaultModel = this.localBackend.defaultModel;
   }
