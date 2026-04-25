@@ -171,6 +171,14 @@ Run connectivity/config health checks (alpha UX lot 3):
 node src/index.ts intent health
 ```
 
+Run the alpha web UX shell (prompt center + sessions list + options panel):
+
+```bash
+node src/index.ts intent web 8787
+```
+
+Then open `http://127.0.0.1:8787` in your browser.
+
 ## Cognitive session mode (alpha)
 
 To run Overlord in a cognitive-only session (no workflow submission / no external action path),

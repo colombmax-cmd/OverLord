@@ -8,6 +8,7 @@ import { runRemoteLlmConfigCli } from './cli/remote-llm-config.ts';
 import type { PlosEvent, RuntimeAuditRecord } from './ports/plos.ts';
 import { buildRunTimelineSnapshot } from './runtime/run-timeline.ts';
 import { OverlordOrchestrator } from './runtime/orchestrator.ts';
+import { startIntentWebServer } from './web/intent-web-server.ts';
 
 const args = process.argv.slice(2);
 if (args[0] === 'config' && args[1] === 'remote-llm') {
@@ -55,6 +56,22 @@ if (args[0] === 'config' && args[1] === 'remote-llm') {
       stderr: (message) => console.error(message),
     }, {
       connectivityStatus: connectivityProbe.getStatus(),
+    });
+  } else if (args[0] === 'intent' && args[1] === 'web') {
+    const port = Number.parseInt(args[2] ?? '8787', 10) || 8787;
+    const server = await startIntentWebServer({
+      orchestrator,
+      connectivityProbe,
+      platform,
+    }, { port });
+    console.log(`Overlord web UX running on http://127.0.0.1:${server.port}`);
+    process.on('SIGINT', async () => {
+      await server.close();
+      process.exit(0);
+    });
+    process.on('SIGTERM', async () => {
+      await server.close();
+      process.exit(0);
     });
   } else {
     const result = await orchestrator.processRawIntent({
