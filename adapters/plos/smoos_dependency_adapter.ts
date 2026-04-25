@@ -17,7 +17,8 @@ import type {
 } from './interface.ts';
 import { createAuditLogEvent } from '../../src/runtime/plos-events.ts';
 
-export const DEFAULT_SMOOS_MODULE = 'smo-os';
+export const DEFAULT_SMOOS_MODULE = '@colombmax-cmd/smo-os';
+export const LEGACY_SMOOS_MODULE = 'smo-os';
 
 export interface SmoosDependencyAdapterOptions {
   moduleName?: string;
@@ -102,7 +103,15 @@ async function resolveExportedAdapter(exportedValue: unknown, moduleName: string
 
 function getSmoosPackageRoot(moduleName: string): string {
   const require = createRequire(import.meta.url);
-  return path.dirname(require.resolve(`${moduleName}/package.json`));
+  try {
+    return path.dirname(require.resolve(`${moduleName}/package.json`));
+  } catch (error) {
+    if (moduleName !== DEFAULT_SMOOS_MODULE) {
+      throw error;
+    }
+
+    return path.dirname(require.resolve(`${LEGACY_SMOOS_MODULE}/package.json`));
+  }
 }
 
 function toCompiledRelativePath(relativePath: string): string {
