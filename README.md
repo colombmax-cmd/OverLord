@@ -171,6 +171,14 @@ Run connectivity/config health checks (alpha UX lot 3):
 node src/index.ts intent health
 ```
 
+Run the alpha web UX shell (prompt center + sessions list + options panel):
+
+```bash
+node src/index.ts intent web 8787
+```
+
+Then open `http://127.0.0.1:8787` in your browser.
+
 ## Cognitive session mode (alpha)
 
 To run Overlord in a cognitive-only session (no workflow submission / no external action path),
@@ -184,3 +192,19 @@ In this mode, the orchestrator still:
 - freezes a deterministic plan
 
 But it returns `outcome: "proposal"` with proposed `steps` and `plan` instead of submitting a workflow.
+
+## Local IA runtime (experimental)
+
+By default, local cognition uses deterministic fallback logic.
+To enable a real local LLM runtime (Ollama-compatible), set:
+
+```bash
+export OVERLORD_LOCAL_LLM_ENABLED=1
+export OVERLORD_LOCAL_LLM_BASE_URL=http://127.0.0.1:11434
+export OVERLORD_LOCAL_LLM_MODEL=qwen2.5:1.5b-instruct
+export OVERLORD_LOCAL_LLM_TIMEOUT_MS=8000
+export OVERLORD_LOCAL_LLM_RETRY_MAX=1
+export OVERLORD_LOCAL_LLM_RETRY_BACKOFF_MS=250
+```
+
+When enabled, Overlord tries the local runtime first and falls back deterministically if the local runtime is unavailable.

@@ -58,3 +58,51 @@ test('intent-health-cli: prefers config profile information when available', asy
   assert.match(rendered, /Connectivity: online/);
   assert.match(rendered, /Remote profile source: env \(openai\/gpt-4.1-mini\)/);
 });
+
+test('intent-health-cli: reports local runtime settings when enabled', async () => {
+  const { out, err, io } = createIo();
+  const exitCode = await runIntentHealthCli(io, {
+    connectivityStatus: 'offline',
+    env: {
+      HOME: '/tmp',
+      OVERLORD_LOCAL_LLM_ENABLED: '1',
+      OVERLORD_LOCAL_LLM_BASE_URL: 'http://127.0.0.1:11434/',
+      OVERLORD_LOCAL_LLM_MODEL: 'qwen2.5:1.5b-instruct',
+      OVERLORD_LOCAL_LLM_TIMEOUT_MS: '5000',
+      OVERLORD_LOCAL_LLM_RETRY_MAX: '2',
+    },
+    fetchImpl: async () => new Response(JSON.stringify({ models: [] }), { status: 200 }),
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(err.length, 0);
+  const rendered = out.join('\n');
+  assert.match(rendered, /Local runtime enabled: yes/);
+  assert.match(rendered, /Local runtime base URL: http:\/\/127.0.0.1:11434/);
+  assert.match(rendered, /Local runtime model: qwen2.5:1.5b-instruct/);
+  assert.match(rendered, /Local runtime timeout ms: 5000/);
+  assert.match(rendered, /Local runtime retry max: 2/);
+  assert.match(rendered, /Local runtime status: reachable/);
+});
+
+test('intent-health-cli: local runtime status reports unreachable endpoint reason', async () => {
+  const { out, err, io } = createIo();
+  const exitCode = await runIntentHealthCli(io, {
+    connectivityStatus: 'offline',
+    env: {
+      HOME: '/tmp',
+      OVERLORD_LOCAL_LLM_ENABLED: '1',
+      OVERLORD_LOCAL_LLM_BASE_URL: 'http://127.0.0.1:11434/',
+      OVERLORD_LOCAL_LLM_MODEL: 'qwen2.5:1.5b-instruct',
+      OVERLORD_LOCAL_LLM_TIMEOUT_MS: '100',
+    },
+    fetchImpl: async () => {
+      throw new Error('connect ECONNREFUSED');
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(err.length, 0);
+  const rendered = out.join('\n');
+  assert.match(rendered, /Local runtime status: unreachable \(connect ECONNREFUSED\)/);
+});
