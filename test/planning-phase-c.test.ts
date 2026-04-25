@@ -51,6 +51,8 @@ test('phase3/cognition: successful proposal path still submits a workflow throug
   assert.equal(result.plan?.steps[0].description, "Create task 'phase c task'");
   assert.equal(result.cognition?.modelId, 'Qwen/Qwen2.5-1.5B-Instruct');
   assert.equal(result.cognition?.connectivityStatus, 'offline');
+  assert.equal(result.cognition?.selectedBackend, 'local');
+  assert.equal(result.cognition?.fallbackReason, undefined);
 });
 
 test('phase3/cognition: router selects remote backend metadata when online preference is remote', async () => {
@@ -89,7 +91,9 @@ test('phase3/cognition: router selects remote backend metadata when online prefe
   assert.equal(result.cognition?.backendKind, 'remote');
   assert.equal(result.cognition?.modelId, 'grok-4.20-beta-latest-non-reasoning');
   assert.equal(result.cognition?.requestedPreference, 'remote');
+  assert.equal(result.cognition?.selectedBackend, 'remote');
   assert.equal(result.cognition?.fallbackApplied, false);
+  assert.equal(result.cognition?.fallbackReason, undefined);
 });
 
 test('phase3/cognition: user-selected remote model is reflected in orchestrator cognition metadata', async () => {

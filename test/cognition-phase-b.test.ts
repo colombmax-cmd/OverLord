@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DeterministicRemoteCognitionBackend } from '../src/cognition/remote-backend.ts';
+import type { CognitionBackend } from '../src/cognition/interface.ts';
 import { RoutedCognitionBackend } from '../src/cognition/router-backend.ts';
 
 const memoryView = {
@@ -76,4 +77,67 @@ test('phaseB/cognition: router returns no_action when remote cognition is requir
   assert.equal(decision.proposal.type, 'no_action');
   assert.equal(decision.route.fallbackApplied, true);
   assert.match(decision.route.reason, /required by payload/);
+});
+
+test('phaseB/cognition: router preserves local-runtime fallback reason for local/auto routing', async () => {
+  const localBackend: CognitionBackend = {
+    kind: 'local',
+    defaultModel: {
+      modelId: 'local-test',
+      displayName: 'local-test',
+      provider: 'Local Runtime',
+      family: 'test',
+      license: 'Apache-2.0',
+      format: 'transformers',
+      recommendedRuntime: 'local',
+      minDeviceClass: 'cpu',
+      supportsStructuredOutput: true,
+      status: 'official',
+      recommendedDefault: true,
+    },
+    getSupportedModels: () => [],
+    decide: async () => ({
+      proposal: {
+        type: 'proposal',
+        steps: [{ id: 's1', description: 'fallback proposal', capability: 'workflow:submit' }],
+      },
+      backendKind: 'local',
+      connectivityStatus: 'offline',
+      selectedModel: {
+        modelId: 'local-test',
+        displayName: 'local-test',
+        provider: 'Local Runtime',
+        family: 'test',
+        license: 'Apache-2.0',
+        format: 'transformers',
+        recommendedRuntime: 'local',
+        minDeviceClass: 'cpu',
+        supportsStructuredOutput: true,
+        status: 'official',
+        recommendedDefault: true,
+      },
+      transcript: [],
+      route: {
+        requestedPreference: 'local',
+        selectedBackend: 'local',
+        reason: 'local runtime fallback: runtime_timeout',
+        attemptedBackends: ['local'],
+        fallbackApplied: true,
+      },
+    }),
+  };
+
+  const backend = new RoutedCognitionBackend({
+    remoteBackend: new DeterministicRemoteCognitionBackend(),
+    localBackend,
+  });
+
+  const decision = await backend.decide({
+    connectivityStatus: 'offline',
+    intent: buildIntent({ title: 'local runtime fallback route' }),
+    memoryView,
+  });
+
+  assert.equal(decision.route.fallbackApplied, true);
+  assert.equal(decision.route.reason, 'local runtime fallback: runtime_timeout');
 });

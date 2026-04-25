@@ -37,6 +37,7 @@ export interface AuditEvent extends EntityMetadata {
     | 'cognition_invoked'
     | 'cognition_decided'
     | 'plan_generated'
+    | 'proposal_ready'
     | 'clarification_requested'
     | 'scope_requested'
     | 'no_action'
