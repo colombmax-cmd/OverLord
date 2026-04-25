@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { buildRunTimelineSnapshot } from '../../../src/runtime/run-timeline.ts';
 import { buildConformanceHarness, validRawIntent } from '../shared/fixtures.ts';
 
 const REQUIRED_AUDIT_TYPES = [
@@ -56,30 +57,14 @@ test('phase5/traceability: one-intent timeline can be reconstructed from audit l
   const audits = platform.getAuditTrail();
   assert.ok(audits.length >= REQUIRED_AUDIT_TYPES.length);
 
-  const auditLogEvents = (await platform.readAllEvents())
-    .filter((event) => event.type === 'overlord.audit/event_emitted')
-    .map((event) => event.payload as Record<string, unknown>);
-
-  assert.ok(auditLogEvents.length >= REQUIRED_AUDIT_TYPES.length);
-
   const runId = audits[0]?.runId;
   assert.ok(runId);
 
-  const runTimeline = auditLogEvents.filter((payload) => payload.runId === runId);
-  assert.ok(runTimeline.length >= REQUIRED_AUDIT_TYPES.length);
+  const timeline = buildRunTimelineSnapshot(runId, await platform.readAllEvents(), audits);
+  assert.equal(timeline.correlationId, runId);
+  assert.ok(timeline.entries.length >= REQUIRED_AUDIT_TYPES.length);
 
-  for (const requiredType of REQUIRED_AUDIT_TYPES) {
-    assert.ok(runTimeline.some((payload) => payload.eventType === requiredType));
-  }
-
-  const orderedByTime = runTimeline
-    .map((payload) => ({
-      ts: String(payload.ts ?? ''),
-      eventType: String(payload.eventType ?? ''),
-    }))
-    .sort((left, right) => Date.parse(left.ts) - Date.parse(right.ts));
-
-  const eventTypes = orderedByTime.map((entry) => entry.eventType);
+  const eventTypes = timeline.entries.filter((entry) => entry.source === 'audit').map((entry) => entry.type);
   for (const requiredType of REQUIRED_AUDIT_TYPES) {
     assert.ok(eventTypes.includes(requiredType));
   }
