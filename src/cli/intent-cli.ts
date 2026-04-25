@@ -1,5 +1,10 @@
 import type { ProcessIntentResult } from '../runtime/orchestrator.ts';
 import type { RunTimelineSnapshot } from '../runtime/run-timeline.ts';
+import {
+  getDefaultLocalModel,
+  listSupportedLocalModels,
+  listSupportedRemoteLlmProviders,
+} from '../cognition/model-registry.ts';
 
 export interface IntentCliIo {
   stdout(message: string): void;
@@ -39,7 +44,10 @@ export async function runIntentCli(
       return 0;
     }
 
-    io.stdout(renderPrettyResult(result));
+    io.stdout(renderPrettyResult(result, {
+      cognitiveOnly: parseBoolean(flags['cognitive-only']),
+      showModelPanel: parseBoolean(flags['show-model-panel'], true),
+    }));
     if (parseBoolean(flags['show-timeline'])) {
       const timeline = await deps.readTimeline?.(result);
       if (timeline) {
@@ -134,12 +142,22 @@ function buildPayload(flags: Record<string, string>): Record<string, unknown> {
   return payload;
 }
 
-function renderPrettyResult(result: ProcessIntentResult): string {
+function renderPrettyResult(
+  result: ProcessIntentResult,
+  options: {
+    cognitiveOnly: boolean;
+    showModelPanel: boolean;
+  },
+): string {
+  const outcomeLabel = renderOutcomeLabel(result.outcome);
   const lines = [
     'Overlord Intent Result',
     '======================',
     `Outcome: ${result.outcome}`,
+    `Outcome label: ${outcomeLabel}`,
   ];
+
+  lines.push(`Session mode: ${options.cognitiveOnly ? 'cognitive-only' : 'workflow-enabled'}`);
 
   if (result.outcome === 'proposal') {
     lines.push(`Plan hash: ${result.plan?.planHash ?? 'n/a'}`);
@@ -159,15 +177,67 @@ function renderPrettyResult(result: ProcessIntentResult): string {
     lines.push('');
     lines.push('Cognition');
     lines.push('---------');
+    lines.push(`Connectivity: ${result.cognition.connectivityStatus}`);
     lines.push(`Backend: ${result.cognition.selectedBackend} (${result.cognition.backendKind})`);
     lines.push(`Model: ${result.cognition.modelId}`);
     lines.push(`Route: ${result.cognition.routeReason}`);
+    lines.push(`Routing badge: ${renderRoutingBadge(result.cognition.selectedBackend, result.cognition.fallbackApplied)}`);
     if (result.cognition.fallbackApplied) {
       lines.push(`Fallback: yes (${result.cognition.fallbackReason ?? result.cognition.routeReason})`);
     }
   }
 
+  if (options.showModelPanel) {
+    lines.push('');
+    lines.push('Model panel');
+    lines.push('-----------');
+    lines.push(...renderModelPanel());
+  }
+
   return lines.join('\n');
+}
+
+function renderOutcomeLabel(outcome: ProcessIntentResult['outcome']): string {
+  switch (outcome) {
+    case 'proposal':
+      return 'PROPOSAL_READY';
+    case 'workflow_submitted':
+      return 'WORKFLOW_SUBMITTED';
+    case 'clarification_required':
+      return 'CLARIFICATION_REQUIRED';
+    case 'scope_request':
+      return 'SCOPE_REQUEST';
+    case 'no_action':
+      return 'NO_ACTION';
+    default:
+      return 'UNKNOWN';
+  }
+}
+
+function renderRoutingBadge(selectedBackend: string, fallbackApplied: boolean): string {
+  if (fallbackApplied) {
+    return `FALLBACK:${selectedBackend.toUpperCase()}`;
+  }
+
+  return selectedBackend.toUpperCase();
+}
+
+function renderModelPanel(): string[] {
+  const localModels = listSupportedLocalModels();
+  const localDefault = getDefaultLocalModel();
+  const remoteProviders = listSupportedRemoteLlmProviders();
+
+  const lines = [
+    `Local default: ${localDefault.modelId}`,
+    `Local catalog size: ${localModels.length}`,
+  ];
+
+  for (const provider of remoteProviders) {
+    const defaultModel = provider.models.find((model) => model.recommendedDefault) ?? provider.models[0];
+    lines.push(`Remote provider: ${provider.providerId} (default model: ${defaultModel?.modelId ?? 'n/a'})`);
+  }
+
+  return lines;
 }
 
 function renderUsage(): string {
@@ -176,7 +246,7 @@ function renderUsage(): string {
     '  node src/index.ts intent run --title <text> [--actor-id <id>] [--intent-type <type>]',
     '    [--cognitive-only true|false] [--no-action true|false]',
     '    [--required-capability <capability>] [--cognition-preference <auto|local|remote>]',
-    '    [--output pretty|json] [--show-timeline true|false]',
+    '    [--output pretty|json] [--show-timeline true|false] [--show-model-panel true|false]',
   ].join('\n');
 }
 
@@ -187,7 +257,7 @@ function renderTimeline(snapshot: RunTimelineSnapshot): string {
   ];
 
   for (const entry of snapshot.entries) {
-    lines.push(`${entry.at} [${entry.source}] ${entry.type}`);
+    lines.push(`${entry.at} [${entry.source}] ${entry.type} :: ${entry.summary}`);
   }
 
   return lines.join('\n');

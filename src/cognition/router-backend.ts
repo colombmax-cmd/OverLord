@@ -91,14 +91,17 @@ export class RoutedCognitionBackend implements CognitionBackend {
 
     attemptedBackends.push('local');
     const decision = await this.localBackend.decide(context);
+    const localFallback = decision.route.fallbackApplied;
     return this.withRoute(decision, {
       requestedPreference: preference,
       selectedBackend: 'local',
-      reason: preference === 'local'
+      reason: localFallback
+        ? decision.route.reason
+        : preference === 'local'
         ? 'local preference requested explicitly'
         : 'auto routing defaults to local-first cognition',
       attemptedBackends,
-      fallbackApplied: false,
+      fallbackApplied: localFallback,
     });
   }
 

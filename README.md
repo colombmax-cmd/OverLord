@@ -194,6 +194,9 @@ To enable a real local LLM runtime (Ollama-compatible), set:
 export OVERLORD_LOCAL_LLM_ENABLED=1
 export OVERLORD_LOCAL_LLM_BASE_URL=http://127.0.0.1:11434
 export OVERLORD_LOCAL_LLM_MODEL=qwen2.5:1.5b-instruct
+export OVERLORD_LOCAL_LLM_TIMEOUT_MS=8000
+export OVERLORD_LOCAL_LLM_RETRY_MAX=1
+export OVERLORD_LOCAL_LLM_RETRY_BACKOFF_MS=250
 ```
 
 When enabled, Overlord tries the local runtime first and falls back deterministically if the local runtime is unavailable.

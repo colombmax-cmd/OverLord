@@ -65,6 +65,12 @@ test('intent-cli: pretty mode renders proposal summary for cognitive-only run', 
   assert.equal(exitCode, 0);
   assert.equal(err.length, 0);
   assert.match(out.join('\n'), /Outcome: proposal/);
+  assert.match(out.join('\n'), /Outcome label: PROPOSAL_READY/);
+  assert.match(out.join('\n'), /Session mode: cognitive-only/);
+  assert.match(out.join('\n'), /Connectivity: offline/);
+  assert.match(out.join('\n'), /Routing badge: LOCAL/);
+  assert.match(out.join('\n'), /Model panel/);
+  assert.match(out.join('\n'), /Local default: Qwen\/Qwen2.5-1.5B-Instruct/);
   assert.deepEqual(receivedIntent, {
     actorId: 'user-1',
     intentType: 'task.create',
@@ -161,6 +167,7 @@ test('intent-cli: pretty mode can append timeline view', async () => {
   assert.equal(err.length, 0);
   assert.match(out.join('\n'), /Run Timeline \(corr-2\)/);
   assert.match(out.join('\n'), /\[audit\] overlord.intent_received/);
+  assert.match(out.join('\n'), /:: overlord.intent_received/);
 });
 
 test('intent-cli: pretty mode highlights fallback guidance when fallback is applied', async () => {
@@ -194,4 +201,5 @@ test('intent-cli: pretty mode highlights fallback guidance when fallback is appl
   assert.equal(exitCode, 0);
   assert.equal(err.length, 0);
   assert.match(out.join('\n'), /Fallback: yes/);
+  assert.match(out.join('\n'), /Routing badge: FALLBACK:LOCAL/);
 });
